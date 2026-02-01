@@ -66,6 +66,16 @@
 </script>
 
 <div class="flex flex-col bg-bg-main">
+  <!-- Resize Handle (Shown when drawer is open) -->
+  {#if bottomDrawerStore.open}
+    <div
+      class="h-1 bg-bg-panel hover:bg-primary cursor-ns-resize transition-colors"
+      onmousedown={startResize}
+      role="separator"
+      aria-orientation="horizontal"
+    ></div>
+  {/if}
+
   <!-- Tabs Bar (Always Shown) -->
   <div 
     class="flex items-center justify-between bg-bg-panel px-2 {bottomDrawerStore.tabs.length > 0 ? 'cursor-pointer hover:bg-bg-main/50' : ''} transition-colors"
@@ -119,14 +129,6 @@
   <!-- Drawer Content (Shown when open) -->
   {#if bottomDrawerStore.open}
     <div class="bg-bg-main flex flex-col" style="height: {drawerHeight}px;">
-      <!-- Resize Handle -->
-      <div
-        class="h-1 bg-bg-panel hover:bg-primary cursor-ns-resize transition-colors"
-        onmousedown={startResize}
-        role="separator"
-        aria-orientation="horizontal"
-      ></div>
-
       <!-- Tab Content -->
       <div class="flex-1 overflow-hidden">
         {#if bottomDrawerStore.activeTab}

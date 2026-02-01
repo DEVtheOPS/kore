@@ -48,7 +48,7 @@
   });
 </script>
 
-<aside class="flex flex-col h-full w-full bg-bg-sidebar border-r border-border-main text-text-main">
+<aside class="flex flex-col h-full w-64 bg-bg-sidebar border-r border-border-main text-text-main">
   <!-- Cluster Switcher Area -->
   <div class="p-4 border-b border-border-subtle space-y-4">
     <div class="flex items-center gap-2 px-1">

@@ -12,6 +12,77 @@
   import { clusterStore } from '$lib/stores/cluster.svelte';
   import { headerStore } from '$lib/stores/header.svelte';
 
+  interface ContainerPort {
+    name?: string;
+    container_port: number;
+    host_port?: number;
+    protocol: string;
+  }
+
+  interface EnvVar {
+    name: string;
+    value?: string;
+    value_from?: string;
+  }
+
+  interface VolumeMount {
+    name: string;
+    mount_path: string;
+    sub_path?: string;
+    read_only: boolean;
+  }
+
+  interface ProbeInfo {
+    probe_type: string;
+    handler_type: string;
+    details: string;
+    initial_delay_seconds: number;
+    period_seconds: number;
+    timeout_seconds: number;
+    success_threshold: number;
+    failure_threshold: number;
+  }
+
+  interface ContainerInfo {
+    name: string;
+    image: string;
+    image_pull_policy: string;
+    ready: boolean;
+    restart_count: number;
+    state: string;
+    cpu_request?: string;
+    cpu_limit?: string;
+    memory_request?: string;
+    memory_limit?: string;
+    ports: ContainerPort[];
+    env: EnvVar[];
+    volume_mounts: VolumeMount[];
+    probes: ProbeInfo[];
+  }
+
+  interface VolumeInfo {
+    name: string;
+    volume_type: string;
+  }
+
+  interface PodCondition {
+    condition_type: string;
+    status: string;
+    reason?: string;
+    message?: string;
+    last_transition_time?: string;
+  }
+
+  interface PodEventInfo {
+    event_type: string;
+    reason: string;
+    message: string;
+    count: number;
+    first_timestamp?: string;
+    last_timestamp?: string;
+    source: string;
+  }
+
   interface Pod {
     name: string;
     namespace: string;
@@ -23,6 +94,15 @@
     qos: string;
     controlled_by: string;
     creation_timestamp?: string;
+    labels: Record<string, string>;
+    annotations: Record<string, string>;
+    pod_ip: string;
+    host_ip: string;
+    service_account: string;
+    priority_class: string;
+    container_details: ContainerInfo[];
+    volumes: VolumeInfo[];
+    conditions: PodCondition[];
   }
 
   let pods = $state<Pod[]>([]);
@@ -30,6 +110,8 @@
   let error = $state('');
   let search = $state('');
   let selectedPod = $state<Pod | null>(null);
+  let podEvents = $state<PodEventInfo[]>([]);
+  let loadingEvents = $state(false);
   let isDrawerOpen = $state(false);
   let unlisten: (() => void) | null = null;
   let now = $state(Date.now());
@@ -141,9 +223,24 @@
     }
   }
 
-  function handleRowClick(row: any) {
+  async function handleRowClick(row: any) {
     selectedPod = row;
     isDrawerOpen = true;
+    
+    // Load events for this pod
+    loadingEvents = true;
+    podEvents = [];
+    try {
+      podEvents = await invoke<PodEventInfo[]>('get_pod_events', {
+        contextName: clusterStore.active,
+        namespace: row.namespace,
+        podName: row.name,
+      });
+    } catch (e) {
+      console.error('Failed to load pod events:', e);
+    } finally {
+      loadingEvents = false;
+    }
   }
 
   function formatAge(creationTimestamp: string | undefined): string {
@@ -336,11 +433,98 @@
                       {container.ready ? 'Ready' : 'Not Ready'}
                     </Badge>
                   </div>
-                  <div class="text-xs text-text-muted">
-                    <div class="mb-1"><span class="font-semibold">Image:</span> {container.image}</div>
-                    <div class="mb-1"><span class="font-semibold">State:</span> {container.state}</div>
-                    <div class="mb-1"><span class="font-semibold">Restarts:</span> {container.restart_count}</div>
+                  <div class="text-xs text-text-muted space-y-1">
+                    <div><span class="font-semibold">Image:</span> {container.image}</div>
+                    <div><span class="font-semibold">Pull Policy:</span> {container.image_pull_policy}</div>
+                    <div><span class="font-semibold">State:</span> {container.state}</div>
+                    <div><span class="font-semibold">Restarts:</span> {container.restart_count}</div>
                   </div>
+
+                  <!-- Ports -->
+                  {#if container.ports && container.ports.length > 0}
+                    <div class="mt-2 pt-2 border-t border-border/50">
+                      <div class="text-xs text-text-muted font-semibold mb-2">Ports</div>
+                      <div class="space-y-1">
+                        {#each container.ports as port}
+                          <div class="text-xs font-mono bg-bg-main/50 p-2 rounded">
+                            {#if port.name}<span class="text-text-muted">{port.name}:</span> {/if}
+                            {port.container_port}
+                            {#if port.host_port} → {port.host_port}{/if}
+                            <span class="text-text-muted">/{port.protocol}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Environment Variables -->
+                  {#if container.env && container.env.length > 0}
+                    <div class="mt-2 pt-2 border-t border-border/50">
+                      <div class="text-xs text-text-muted font-semibold mb-2">Environment ({container.env.length})</div>
+                      <div class="space-y-1 max-h-40 overflow-y-auto">
+                        {#each container.env as envVar}
+                          <div class="text-xs font-mono bg-bg-main/50 p-2 rounded break-all">
+                            <span class="text-text-muted font-semibold">{envVar.name}:</span>
+                            {#if envVar.value}
+                              {envVar.value}
+                            {:else if envVar.value_from}
+                              <span class="text-text-muted italic">{envVar.value_from}</span>
+                            {:else}
+                              <span class="text-text-muted">-</span>
+                            {/if}
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Volume Mounts -->
+                  {#if container.volume_mounts && container.volume_mounts.length > 0}
+                    <div class="mt-2 pt-2 border-t border-border/50">
+                      <div class="text-xs text-text-muted font-semibold mb-2">Mounts ({container.volume_mounts.length})</div>
+                      <div class="space-y-1 max-h-40 overflow-y-auto">
+                        {#each container.volume_mounts as mount}
+                          <div class="text-xs font-mono bg-bg-main/50 p-2 rounded">
+                            <div><span class="text-text-muted">Volume:</span> {mount.name}</div>
+                            <div><span class="text-text-muted">Path:</span> {mount.mount_path}</div>
+                            {#if mount.sub_path}
+                              <div><span class="text-text-muted">SubPath:</span> {mount.sub_path}</div>
+                            {/if}
+                            <div>
+                              <Badge variant={mount.read_only ? 'neutral' : 'success'}>
+                                {mount.read_only ? 'Read-Only' : 'Read-Write'}
+                              </Badge>
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Probes -->
+                  {#if container.probes && container.probes.length > 0}
+                    <div class="mt-2 pt-2 border-t border-border/50">
+                      <div class="text-xs text-text-muted font-semibold mb-2">Probes</div>
+                      <div class="space-y-2">
+                        {#each container.probes as probe}
+                          <div class="text-xs bg-bg-main/50 p-2 rounded">
+                            <div class="font-semibold capitalize mb-1">{probe.probe_type}</div>
+                            <div class="text-text-muted">
+                              <span class="font-semibold">{probe.handler_type}:</span> {probe.details}
+                            </div>
+                            <div class="grid grid-cols-2 gap-1 mt-1 text-text-muted">
+                              <div>Delay: {probe.initial_delay_seconds}s</div>
+                              <div>Period: {probe.period_seconds}s</div>
+                              <div>Timeout: {probe.timeout_seconds}s</div>
+                              <div>Threshold: {probe.success_threshold}/{probe.failure_threshold}</div>
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Resources -->
                   {#if container.cpu_request || container.cpu_limit || container.memory_request || container.memory_limit}
                     <div class="mt-2 pt-2 border-t border-border/50">
                       <div class="text-xs text-text-muted font-semibold mb-1">Resources</div>
@@ -377,7 +561,7 @@
                 <div class="p-3 bg-bg-panel rounded-md border border-border">
                   <div class="flex items-center justify-between mb-1">
                     <div class="font-semibold text-sm">{condition.condition_type}</div>
-                    <Badge variant={condition.status === 'True' ? 'success' : 'default'}>
+                    <Badge variant={condition.status === 'True' ? 'success' : 'neutral'}>
                       {condition.status}
                     </Badge>
                   </div>
@@ -403,7 +587,7 @@
               {#each selectedPod.volumes as volume}
                 <div class="p-3 bg-bg-panel rounded-md border border-border flex items-center justify-between">
                   <div class="font-semibold text-sm">{volume.name}</div>
-                  <Badge variant="default">{volume.volume_type}</Badge>
+                  <Badge variant="neutral">{volume.volume_type}</Badge>
                 </div>
               {/each}
             </div>
@@ -442,6 +626,43 @@
             </div>
           </div>
         {/if}
+
+        <!-- Events Section -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
+            Events {#if podEvents.length > 0}({podEvents.length}){/if}
+          </h3>
+          {#if loadingEvents}
+            <div class="text-sm text-text-muted text-center py-4">Loading events...</div>
+          {:else if podEvents.length > 0}
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+              {#each podEvents as event}
+                <div class="p-3 bg-bg-panel rounded-md border border-border">
+                  <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                      <Badge variant={event.event_type === 'Warning' ? 'error' : 'neutral'}>
+                        {event.event_type}
+                      </Badge>
+                      <span class="text-sm font-semibold">{event.reason}</span>
+                    </div>
+                    {#if event.count > 1}
+                      <Badge variant="neutral">{event.count}x</Badge>
+                    {/if}
+                  </div>
+                  <div class="text-xs text-text mb-2">{event.message}</div>
+                  <div class="flex items-center justify-between text-xs text-text-muted">
+                    <div>Source: {event.source}</div>
+                    {#if event.last_timestamp}
+                      <div>{new Date(event.last_timestamp).toLocaleString()}</div>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-sm text-text-muted text-center py-4">No events found</div>
+          {/if}
+        </div>
       </div>
     {/if}
   </Drawer>

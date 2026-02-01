@@ -609,9 +609,9 @@ pub async fn stream_container_logs(
     container_name: String,
     stream_id: String,
 ) -> Result<(), String> {
+    use futures::{AsyncBufReadExt, TryStreamExt};
     use k8s_openapi::api::core::v1::Pod;
     use kube::api::LogParams;
-    use futures::{AsyncBufReadExt, TryStreamExt};
 
     let client = create_client_for_context(&context_name).await?;
     let pods: Api<Pod> = Api::namespaced(client, &namespace);

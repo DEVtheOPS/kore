@@ -83,7 +83,7 @@
 
 <div class="flex flex-col h-full">
   <!-- Toolbar -->
-  <div class="flex items-center justify-between px-4 py-2 bg-bg-panel border-b border-border">
+  <div class="flex items-center justify-between px-4 py-2 bg-bg-panel">
     <div class="flex items-center gap-2">
       <span class="text-sm text-text-muted">
         {data.podName} / {data.containerName}

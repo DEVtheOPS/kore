@@ -33,8 +33,8 @@
     <div class="flex-1 overflow-auto p-6 bg-bg-panel">
       {@render children()}
     </div>
-  </main>
 
-  <!-- Global Bottom Drawer -->
-  <BottomDrawer />
+    <!-- Global Bottom Drawer -->
+    <BottomDrawer />
+  </main>
 </div>

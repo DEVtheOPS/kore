@@ -10,8 +10,8 @@
 
   // Load saved height on mount
   $effect(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('bottom-drawer-height');
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem("bottom-drawer-height");
       if (saved) {
         drawerHeight = parseInt(saved, 10);
       }
@@ -30,10 +30,10 @@
     const deltaY = startY - e.clientY;
     const newHeight = Math.max(200, Math.min(window.innerHeight - 100, startHeight + deltaY));
     drawerHeight = newHeight;
-    
+
     // Save to localStorage as user drags
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('bottom-drawer-height', newHeight.toString());
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("bottom-drawer-height", newHeight.toString());
     }
   }
 
@@ -44,13 +44,11 @@
   function handleTabBarClick(e: MouseEvent) {
     // Don't toggle if clicking on a tab or the minimize button
     const target = e.target as HTMLElement;
-    if (target.closest('[role="tab"]') || target.closest('button')) {
+    if (target.closest('[role="tab"]') || target.closest("button")) {
       return;
     }
-    
-    if (bottomDrawerStore.tabs.length > 0) {
-      bottomDrawerStore.toggle();
-    }
+
+    bottomDrawerStore.toggle();
   }
 
   $effect(() => {
@@ -67,18 +65,16 @@
 
 <div class="flex flex-col bg-bg-main">
   <!-- Resize Handle (Shown when drawer is open) -->
-  {#if bottomDrawerStore.open}
-    <div
-      class="h-1 bg-bg-panel hover:bg-primary cursor-ns-resize transition-colors"
-      onmousedown={startResize}
-      role="separator"
-      aria-orientation="horizontal"
-    ></div>
-  {/if}
+  <div
+    class="h-1 bg-bg-panel hover:bg-primary cursor-ns-resize transition-colors"
+    onmousedown={startResize}
+    role="separator"
+    aria-orientation="horizontal"
+  ></div>
 
   <!-- Tabs Bar (Always Shown) -->
-  <div 
-    class="flex items-center justify-between bg-bg-panel px-2 {bottomDrawerStore.tabs.length > 0 ? 'cursor-pointer hover:bg-bg-main/50' : ''} transition-colors"
+  <div
+    class="flex items-center justify-between bg-bg-panel px-2 cursor-pointer hover:bg-bg-main/50 transition-colors"
     onclick={handleTabBarClick}
   >
     <div class="flex items-center gap-1 bg-bg-sidebar overflow-x-auto flex-1">
@@ -115,7 +111,6 @@
         class="p-1 hover:bg-bg-main rounded transition-colors"
         onclick={() => bottomDrawerStore.toggle()}
         title={bottomDrawerStore.open ? "Minimize" : "Maximize"}
-        disabled={bottomDrawerStore.tabs.length === 0}
       >
         {#if bottomDrawerStore.open}
           <ChevronDown size={18} />
@@ -139,6 +134,10 @@
           {:else}
             <div class="p-4">Unknown tab type</div>
           {/if}
+        {:else}
+          <div class="flex items-center justify-center h-full text-text-muted">
+            Open a pod's logs to get started
+          </div>
         {/if}
       </div>
     </div>

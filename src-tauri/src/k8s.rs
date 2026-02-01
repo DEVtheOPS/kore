@@ -132,8 +132,8 @@ pub async fn list_namespaces(context_name: String) -> Result<Vec<String>, String
 
 fn map_pod_to_summary(p: Pod) -> PodSummary {
     let status = p.status.as_ref().map(|s| s.phase.clone().unwrap_or_default()).unwrap_or_default();
-    let name = p.metadata.name.unwrap_or_default();
-    let namespace = p.metadata.namespace.unwrap_or_default();
+    let name = p.metadata.name.clone().unwrap_or_default();
+    let namespace = p.metadata.namespace.clone().unwrap_or_default();
     let age = p.metadata.creation_timestamp.as_ref()
         .map(|t| {
             // k8s-openapi 0.27 uses `jiff` by default or `chrono` if configured, but t.0 returns the inner type
@@ -174,8 +174,142 @@ fn map_pod_to_summary(p: Pod) -> PodSummary {
     
     let controlled_by = p.metadata.owner_references.as_ref()
         .and_then(|refs| refs.first())
-        .map(|r| r.kind.clone())
+        .map(|r| format!("{}/{}", r.kind, r.name))
         .unwrap_or_else(|| "-".to_string());
+
+    // Labels and annotations
+    let labels = p.metadata.labels.clone().unwrap_or_default();
+    let annotations = p.metadata.annotations.clone().unwrap_or_default();
+
+    // Network info
+    let pod_ip = p.status.as_ref()
+        .and_then(|s| s.pod_ip.clone())
+        .unwrap_or_else(|| "-".to_string());
+    let host_ip = p.status.as_ref()
+        .and_then(|s| s.host_ip.clone())
+        .unwrap_or_else(|| "-".to_string());
+
+    // Service account
+    let service_account = p.spec.as_ref()
+        .and_then(|s| s.service_account_name.clone())
+        .unwrap_or_else(|| "default".to_string());
+
+    // Priority class
+    let priority_class = p.spec.as_ref()
+        .and_then(|s| s.priority_class_name.clone())
+        .unwrap_or_else(|| "-".to_string());
+
+    // Container details
+    let mut container_details = Vec::new();
+    if let Some(spec) = p.spec.as_ref() {
+        for container in &spec.containers {
+                let container_status = container_statuses
+                    .and_then(|statuses| statuses.iter().find(|s| s.name == container.name))
+                    .cloned();
+
+                let ready = container_status.as_ref().map(|s| s.ready).unwrap_or(false);
+                let restart_count = container_status.as_ref().map(|s| s.restart_count).unwrap_or(0);
+                
+                let state = if let Some(cs) = container_status.as_ref() {
+                    if cs.state.as_ref().and_then(|s| s.running.as_ref()).is_some() {
+                        "Running".to_string()
+                    } else if cs.state.as_ref().and_then(|s| s.waiting.as_ref()).is_some() {
+                        let reason = cs.state.as_ref()
+                            .and_then(|s| s.waiting.as_ref())
+                            .and_then(|w| w.reason.clone())
+                            .unwrap_or_else(|| "Waiting".to_string());
+                        format!("Waiting: {}", reason)
+                    } else if cs.state.as_ref().and_then(|s| s.terminated.as_ref()).is_some() {
+                        let reason = cs.state.as_ref()
+                            .and_then(|s| s.terminated.as_ref())
+                            .and_then(|t| t.reason.clone())
+                            .unwrap_or_else(|| "Terminated".to_string());
+                        format!("Terminated: {}", reason)
+                    } else {
+                        "Unknown".to_string()
+                    }
+                } else {
+                    "Unknown".to_string()
+                };
+
+                let resources = container.resources.as_ref();
+                let cpu_request = resources
+                    .and_then(|r| r.requests.as_ref())
+                    .and_then(|req| req.get("cpu"))
+                    .map(|q| q.0.clone());
+                let cpu_limit = resources
+                    .and_then(|r| r.limits.as_ref())
+                    .and_then(|lim| lim.get("cpu"))
+                    .map(|q| q.0.clone());
+                let memory_request = resources
+                    .and_then(|r| r.requests.as_ref())
+                    .and_then(|req| req.get("memory"))
+                    .map(|q| q.0.clone());
+                let memory_limit = resources
+                    .and_then(|r| r.limits.as_ref())
+                    .and_then(|lim| lim.get("memory"))
+                    .map(|q| q.0.clone());
+
+                container_details.push(ContainerInfo {
+                    name: container.name.clone(),
+                    image: container.image.clone().unwrap_or_default(),
+                    ready,
+                    restart_count,
+                    state,
+                    cpu_request,
+                    cpu_limit,
+                    memory_request,
+                    memory_limit,
+                });
+        }
+    }
+
+    // Volumes
+    let mut volumes = Vec::new();
+    if let Some(spec) = p.spec.as_ref() {
+        if let Some(vols) = spec.volumes.as_ref() {
+            for vol in vols {
+                let volume_type = if vol.config_map.is_some() {
+                    "ConfigMap".to_string()
+                } else if vol.secret.is_some() {
+                    "Secret".to_string()
+                } else if vol.empty_dir.is_some() {
+                    "EmptyDir".to_string()
+                } else if vol.host_path.is_some() {
+                    "HostPath".to_string()
+                } else if vol.persistent_volume_claim.is_some() {
+                    "PersistentVolumeClaim".to_string()
+                } else if vol.projected.is_some() {
+                    "Projected".to_string()
+                } else if vol.downward_api.is_some() {
+                    "DownwardAPI".to_string()
+                } else {
+                    "Other".to_string()
+                };
+
+                volumes.push(VolumeInfo {
+                    name: vol.name.clone(),
+                    volume_type,
+                });
+            }
+        }
+    }
+
+    // Conditions
+    let mut conditions = Vec::new();
+    if let Some(status) = p.status.as_ref() {
+        if let Some(conds) = status.conditions.as_ref() {
+            for cond in conds {
+                conditions.push(PodCondition {
+                    condition_type: cond.type_.clone(),
+                    status: cond.status.clone(),
+                    reason: cond.reason.clone(),
+                    message: cond.message.clone(),
+                    last_transition_time: cond.last_transition_time.as_ref().map(|t| t.0.to_string()),
+                });
+            }
+        }
+    }
 
     PodSummary {
         name,
@@ -188,6 +322,15 @@ fn map_pod_to_summary(p: Pod) -> PodSummary {
         node,
         qos,
         controlled_by,
+        labels,
+        annotations,
+        pod_ip,
+        host_ip,
+        service_account,
+        priority_class,
+        container_details,
+        volumes,
+        conditions,
     }
 }
 
@@ -292,6 +435,25 @@ pub async fn start_pod_watch(
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
+pub struct ContainerInfo {
+    name: String,
+    image: String,
+    ready: bool,
+    restart_count: i32,
+    state: String,
+    cpu_request: Option<String>,
+    cpu_limit: Option<String>,
+    memory_request: Option<String>,
+    memory_limit: Option<String>,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct VolumeInfo {
+    name: String,
+    volume_type: String,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
 pub struct PodSummary {
     name: String,
     namespace: String,
@@ -303,4 +465,23 @@ pub struct PodSummary {
     node: String,
     qos: String,
     controlled_by: String,
+    // Extended details
+    labels: std::collections::BTreeMap<String, String>,
+    annotations: std::collections::BTreeMap<String, String>,
+    pod_ip: String,
+    host_ip: String,
+    service_account: String,
+    priority_class: String,
+    container_details: Vec<ContainerInfo>,
+    volumes: Vec<VolumeInfo>,
+    conditions: Vec<PodCondition>,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct PodCondition {
+    condition_type: String,
+    status: String,
+    reason: Option<String>,
+    message: Option<String>,
+    last_transition_time: Option<String>,
 }

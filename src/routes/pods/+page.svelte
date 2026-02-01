@@ -274,39 +274,174 @@
   <Drawer bind:open={isDrawerOpen} title={selectedPod?.name || 'Pod Details'}>
     {#if selectedPod}
       <div class="space-y-6">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-xs text-text-muted uppercase font-semibold">Namespace</div>
-            <div>{selectedPod.namespace}</div>
-          </div>
-          <div>
-             <div class="text-xs text-text-muted uppercase font-semibold">Status</div>
-             <Badge variant={getStatusVariant(selectedPod.status)}>{selectedPod.status}</Badge>
-          </div>
-          <div>
-             <div class="text-xs text-text-muted uppercase font-semibold">Node</div>
-             <div>{selectedPod.node}</div>
-          </div>
-          <div>
-             <div class="text-xs text-text-muted uppercase font-semibold">Age</div>
-             <div>{selectedPod.age}</div>
-          </div>
-           <div>
-             <div class="text-xs text-text-muted uppercase font-semibold">QoS</div>
-             <div>{selectedPod.qos}</div>
-          </div>
-           <div>
-             <div class="text-xs text-text-muted uppercase font-semibold">Controlled By</div>
-             <div>{selectedPod.controlled_by}</div>
+        <!-- Overview Section -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">Overview</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Namespace</div>
+              <div class="text-sm">{selectedPod.namespace}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Status</div>
+              <Badge variant={getStatusVariant(selectedPod.status)}>{selectedPod.status}</Badge>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Node</div>
+              <div class="text-sm">{selectedPod.node || '-'}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Age</div>
+              <div class="text-sm">{selectedPod.age}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">QoS Class</div>
+              <div class="text-sm">{selectedPod.qos || '-'}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Controlled By</div>
+              <div class="text-sm">{selectedPod.controlled_by}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Pod IP</div>
+              <div class="text-sm font-mono">{selectedPod.pod_ip}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Host IP</div>
+              <div class="text-sm font-mono">{selectedPod.host_ip}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Service Account</div>
+              <div class="text-sm">{selectedPod.service_account}</div>
+            </div>
+            <div>
+              <div class="text-xs text-text-muted uppercase font-semibold mb-1">Priority Class</div>
+              <div class="text-sm">{selectedPod.priority_class}</div>
+            </div>
           </div>
         </div>
 
-        <div>
-           <h3 class="font-bold mb-2">Containers</h3>
-           <div class="p-4 bg-bg-panel rounded-md">
-             {selectedPod.containers} container(s) running
-           </div>
+        <!-- Containers Section -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
+            Containers ({selectedPod.container_details?.length || 0})
+          </h3>
+          {#if selectedPod.container_details && selectedPod.container_details.length > 0}
+            <div class="space-y-3">
+              {#each selectedPod.container_details as container}
+                <div class="p-4 bg-bg-panel rounded-md border border-border space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="font-semibold">{container.name}</div>
+                    <Badge variant={container.ready ? 'success' : 'warning'}>
+                      {container.ready ? 'Ready' : 'Not Ready'}
+                    </Badge>
+                  </div>
+                  <div class="text-xs text-text-muted">
+                    <div class="mb-1"><span class="font-semibold">Image:</span> {container.image}</div>
+                    <div class="mb-1"><span class="font-semibold">State:</span> {container.state}</div>
+                    <div class="mb-1"><span class="font-semibold">Restarts:</span> {container.restart_count}</div>
+                  </div>
+                  {#if container.cpu_request || container.cpu_limit || container.memory_request || container.memory_limit}
+                    <div class="mt-2 pt-2 border-t border-border/50">
+                      <div class="text-xs text-text-muted font-semibold mb-1">Resources</div>
+                      <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span class="text-text-muted">CPU Request:</span> {container.cpu_request || '-'}
+                        </div>
+                        <div>
+                          <span class="text-text-muted">CPU Limit:</span> {container.cpu_limit || '-'}
+                        </div>
+                        <div>
+                          <span class="text-text-muted">Memory Request:</span> {container.memory_request || '-'}
+                        </div>
+                        <div>
+                          <span class="text-text-muted">Memory Limit:</span> {container.memory_limit || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-sm text-text-muted">No container details available</div>
+          {/if}
         </div>
+
+        <!-- Conditions Section -->
+        {#if selectedPod.conditions && selectedPod.conditions.length > 0}
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">Conditions</h3>
+            <div class="space-y-2">
+              {#each selectedPod.conditions as condition}
+                <div class="p-3 bg-bg-panel rounded-md border border-border">
+                  <div class="flex items-center justify-between mb-1">
+                    <div class="font-semibold text-sm">{condition.condition_type}</div>
+                    <Badge variant={condition.status === 'True' ? 'success' : 'default'}>
+                      {condition.status}
+                    </Badge>
+                  </div>
+                  {#if condition.reason}
+                    <div class="text-xs text-text-muted"><span class="font-semibold">Reason:</span> {condition.reason}</div>
+                  {/if}
+                  {#if condition.message}
+                    <div class="text-xs text-text-muted mt-1">{condition.message}</div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Volumes Section -->
+        {#if selectedPod.volumes && selectedPod.volumes.length > 0}
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
+              Volumes ({selectedPod.volumes.length})
+            </h3>
+            <div class="space-y-2">
+              {#each selectedPod.volumes as volume}
+                <div class="p-3 bg-bg-panel rounded-md border border-border flex items-center justify-between">
+                  <div class="font-semibold text-sm">{volume.name}</div>
+                  <Badge variant="default">{volume.volume_type}</Badge>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Labels Section -->
+        {#if selectedPod.labels && Object.keys(selectedPod.labels).length > 0}
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
+              Labels ({Object.keys(selectedPod.labels).length})
+            </h3>
+            <div class="space-y-1">
+              {#each Object.entries(selectedPod.labels) as [key, value]}
+                <div class="p-2 bg-bg-panel rounded-md border border-border text-xs font-mono">
+                  <span class="text-text-muted">{key}:</span> {value}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Annotations Section -->
+        {#if selectedPod.annotations && Object.keys(selectedPod.annotations).length > 0}
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
+              Annotations ({Object.keys(selectedPod.annotations).length})
+            </h3>
+            <div class="space-y-1 max-h-64 overflow-y-auto">
+              {#each Object.entries(selectedPod.annotations) as [key, value]}
+                <div class="p-2 bg-bg-panel rounded-md border border-border text-xs font-mono break-all">
+                  <div class="text-text-muted font-semibold mb-1">{key}</div>
+                  <div class="text-text">{value}</div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
   </Drawer>

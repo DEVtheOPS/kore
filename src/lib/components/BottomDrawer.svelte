@@ -26,7 +26,7 @@
       const initialHeight = Math.max(200, Math.min(window.innerHeight - 100, window.innerHeight - e.clientY));
       drawerHeight = initialHeight;
       startHeight = initialHeight;
-      
+
       // Save the new height
       if (typeof localStorage !== "undefined") {
         localStorage.setItem("bottom-drawer-height", initialHeight.toString());
@@ -34,7 +34,7 @@
     } else {
       startHeight = drawerHeight;
     }
-    
+
     isResizing = true;
     startY = e.clientY;
     e.preventDefault();
@@ -79,13 +79,16 @@
 </script>
 
 <div class="flex flex-col bg-bg-main">
-  <!-- Resize Handle (Shown when drawer is open) -->
+  <!-- Resize Handle (Always Shown) -->
   <div
-    class="h-1 bg-bg-panel hover:bg-primary cursor-ns-resize transition-colors"
+    class="h-2 bg-bg-panel hover:bg-primary transition-colors flex items-center justify-center group"
+    style="cursor: ns-resize;"
     onmousedown={startResize}
     role="separator"
     aria-orientation="horizontal"
-  ></div>
+  >
+    <div class="w-12 h-1 bg-border rounded-full group-hover:bg-primary transition-colors"></div>
+  </div>
 
   <!-- Tabs Bar (Always Shown) -->
   <div

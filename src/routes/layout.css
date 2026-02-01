@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@theme {
+  /* Semantic Color Mapping */
+  --color-bg-main: var(--bg-main);
+  --color-bg-sidebar: var(--bg-sidebar);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-card: var(--bg-card);
+  --color-bg-popover: var(--bg-popover);
+
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-border-main: var(--border-main);
+  --color-border-subtle: var(--border-subtle);
+
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+
+  /* Spacing & Radii */
+  --radius-card: var(--radius-card);
+  --radius-input: var(--radius-input);
+  --radius-button: var(--radius-button);
+}
+
+/* Base Variables (Rusty Theme - Default) */
+:root {
+  /* Surfaces */
+  --bg-main: #1a1b1e;
+  --bg-sidebar: #141517;
+  --bg-panel: #202124;
+  --bg-card: #25262b;
+  --bg-popover: #2c2e33;
+
+  /* Actions (Rusty Orange) */
+  --color-primary: #ff5722;
+  --color-primary-hover: #f4511e;
+  --color-accent: #ff8a65;
+
+  /* Text */
+  --text-main: #e0e0e0;
+  --text-muted: #9ca3af;
+  --text-inverse: #ffffff;
+
+  /* Borders */
+  --border-main: #373a40;
+  --border-subtle: #2c2e33;
+
+  /* Status */
+  --color-success: #4caf50;
+  --color-warning: #ff9800;
+  --color-error: #f44336;
+  --color-info: #2196f3;
+
+  /* Radii */
+  --radius-card: 0.75rem;
+  --radius-input: 0.5rem;
+  --radius-button: 0.5rem;
+  
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-main);
+  background-color: var(--bg-main);
+}
+
+/* Rusty Light Theme */
+.rusty-light {
+  /* Surfaces */
+  --bg-main: #f8f9fa;
+  --bg-sidebar: #e9ecef;
+  --bg-panel: #ffffff;
+  --bg-card: #f1f3f5;
+  --bg-popover: #dee2e6;
+
+  /* Actions (Rusty Orange) */
+  --color-primary: #ff5722;
+  --color-primary-hover: #f4511e;
+  --color-accent: #ff8a65;
+
+  /* Text */
+  --text-main: #212529;
+  --text-muted: #868e96;
+  --text-inverse: #ffffff;
+
+  /* Borders */
+  --border-main: #ced4da;
+  --border-subtle: #e9ecef;
+
+  /* Status */
+  --color-success: #40c057;
+  --color-warning: #fd7e14;
+  --color-error: #fa5252;
+  --color-info: #228be6;
+}
+
+/* Dracula Theme Override */
+.dracula {
+  /* Surfaces */
+  --bg-main: #282a36;
+  --bg-sidebar: #21222c;
+  --bg-panel: #343746;
+  --bg-card: #44475a;
+  --bg-popover: #6272a4;
+
+  /* Actions (Dracula Pink/Purple) */
+  --color-primary: #ff79c6;
+  --color-primary-hover: #bd93f9;
+  --color-accent: #8be9fd;
+
+  /* Text */
+  --text-main: #f8f8f2;
+  --text-muted: #6272a4;
+  --text-inverse: #282a36;
+
+  /* Borders */
+  --border-main: #6272a4;
+  --border-subtle: #44475a;
+
+  /* Status */
+  --color-success: #50fa7b;
+  --color-warning: #ffb86c;
+  --color-error: #ff5555;
+  --color-info: #8be9fd;
+}
+
+/* Alucard (Dracula Light) Theme */
+.alucard {
+  /* Surfaces */
+  --bg-main: #f8f8f2;
+  --bg-sidebar: #e2e2e2;
+  --bg-panel: #ffffff;
+  --bg-card: #f0f0f0;
+  --bg-popover: #d6d6d6;
+
+  /* Actions (Dracula Purple) */
+  --color-primary: #bd93f9;
+  --color-primary-hover: #ff79c6;
+  --color-accent: #8be9fd;
+
+  /* Text */
+  --text-main: #282a36;
+  --text-muted: #6272a4;
+  --text-inverse: #f8f8f2;
+
+  /* Borders */
+  --border-main: #bd93f9;
+  --border-subtle: #6272a4;
+
+  /* Status */
+  --color-success: #50fa7b;
+  --color-warning: #ffb86c;
+  --color-error: #ff5555;
+  --color-info: #8be9fd;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+}

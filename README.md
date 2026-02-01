@@ -1,0 +1,86 @@
+# Rustylens
+
+A lightweight, rusty, and blazing fast Kubernetes IDE built with Tauri v2 and Svelte 5. Designed as a performant alternative to OpenLens.
+
+![Rustylens](https://raw.githubusercontent.com/tauri-apps/tauri/dev/.github/splash.png) <!-- Placeholder for actual screenshot -->
+
+## Features
+
+- **🚀 Blazing Fast**: Built on Rust and Tauri, consuming a fraction of the RAM of Electron-based competitors.
+- **🎨 Theming System**:
+  - **Rusty** (Default Dark)
+  - **Rusty Light**
+  - **Dracula**
+  - **Alucard** (Light Dracula)
+- **☸️ Multi-Cluster Management**:
+  - Supports standard `~/.kube/config`.
+  - Import and manage separate kubeconfigs in `~/.rustylens/kubeconfigs/`.
+  - Instant context switching via Sidebar.
+- **⚡ Real-time Updates**: Kubernetes resources update in real-time using efficient watch streams.
+- **📊 Advanced Data Tables**:
+  - Sorting, Filtering, and Column Reordering.
+  - Multi-selection and Batch Actions (e.g., Bulk Delete).
+  - Persistent user preferences for column visibility.
+- **🛠️ Workload Management**: View, Edit, Log, Shell, and Delete Pods (more resources coming soon).
+
+## Tech Stack
+
+- **Frontend Framework**: [Svelte 5](https://svelte.dev/) (Runes)
+- **Desktop Framework**: [Tauri v2](https://v2.tauri.app/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Kubernetes Client**: `kube-rs` & `k8s-openapi`
+- **Icons**: `lucide-svelte`
+
+## Project Structure
+
+```
+├── src/                  # Svelte Frontend
+│   ├── lib/
+│   │   ├── components/   # UI primitives (DataTable, Sidebar, etc.)
+│   │   └── stores/       # Global state (cluster, settings, header)
+│   ├── routes/           # File-based routing
+│   └── ...
+├── src-tauri/            # Rust Backend
+│   ├── src/
+│   │   ├── config/       # Kubeconfig & App settings management
+│   │   ├── k8s.rs        # Kubernetes API logic & Watchers
+│   │   └── ...
+│   └── ...
+```
+
+## Development
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Node.js](https://nodejs.org/) & [pnpm](https://pnpm.io/)
+- Docker (optional, for local k8s testing)
+
+### Setup
+
+1. **Install dependencies**:
+   ```bash
+   pnpm install
+   cd src-tauri && cargo fetch
+   ```
+
+2. **Run Development Server**:
+   ```bash
+   pnpm tauri dev
+   ```
+
+### Building for Production
+
+```bash
+pnpm tauri build
+```
+
+## Configuration
+
+Rustylens stores its configuration and imported kubeconfigs in:
+- **macOS/Linux**: `~/.rustylens/`
+- **Windows**: `C:\Users\<User>\.rustylens\`
+
+## License
+
+MIT

@@ -14,11 +14,22 @@
 ### Key Architectural Patterns
 
 1. **Stores**: Centralized logic in `src/lib/stores/`. Use `class` based stores with `$state` fields.
-2. **Theming**: Do not hardcode colors. Use semantic variables (`--bg-main`, `--text-muted`, `--color-primary`, etc.).
-3. **Kubernetes Interactions**:
+   - `clustersStore`: Manages all clusters with SQLite persistence
+   - `activeClusterStore`: Tracks currently selected cluster and namespaces
+   - `bookmarksStore`: Manages cluster bookmarks for icon sidebar
+   - `settingsStore`: App-level settings (theme, etc.)
+2. **Routing Structure**:
+   - `/` - Cluster overview (management page)
+   - `/cluster/[id]/*` - Cluster-scoped views (all resources)
+   - `/cluster/[id]/settings` - Cluster-specific settings
+   - `/settings` - App-level settings
+3. **Theming**: Do not hardcode colors. Use semantic variables (`--bg-main`, `--text-muted`, `--color-primary`, etc.).
+4. **Kubernetes Interactions**:
     - **Commands**: Simple actions (list, delete) use `#[tauri::command]`.
     - **Streaming**: Resource watching uses Tauri Events (`start_pod_watch` -> `window.emit`).
-    - **Config**: Kubeconfigs are aggregated from `~/.kube/config` and `~/.kore/kubeconfigs/`.
+    - **Cluster Management**: SQLite database at `~/.kore/clusters.db` stores cluster metadata.
+    - **Config Storage**: Each cluster's kubeconfig stored at `~/.kore/kubeconfigs/<uuid>.yaml`.
+    - **UUID-based**: Clusters identified by UUID v4 for stable routing.
 
 ### Component Library (`src/lib/components/ui/`)
 
@@ -26,6 +37,9 @@
 - **Select/Input/Button/Badge**: Reusable primitives matching the design system.
 - **Drawer**: Right-side panel for details.
 - **Menu**: Dropdowns for row actions.
+- **IconSidebar**: Left-most sidebar with cluster bookmarks and app navigation.
+- **ResourceSidebar**: Cluster-specific navigation for resource types.
+- **ClusterImportModal**: Import clusters from files or folders with context extraction.
 
 ---
 

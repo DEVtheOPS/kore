@@ -14,9 +14,11 @@
   - **Alucard** (Light Dracula)
   - **Rusty** & **Rusty Light** (Legacy)
 - **☸️ Multi-Cluster Management**:
-  - Supports standard `~/.kube/config`.
-  - Import and manage separate kubeconfigs in `~/.kore/kubeconfigs/`.
-  - Instant context switching via Sidebar.
+  - Import kubeconfigs from files or folders with automatic context extraction.
+  - Each cluster stored independently with UUID-based routing.
+  - SQLite database for cluster metadata (name, icon, description, tags).
+  - Bookmark favorite clusters in the icon sidebar for quick access.
+  - Drag-and-drop to reorder bookmarks.
 - **⚡ Real-time Updates**: Kubernetes resources update in real-time using efficient watch streams.
 - **📊 Advanced Data Tables**:
   - Sorting, Filtering, and Column Reordering.
@@ -35,16 +37,32 @@
 ## Project Structure
 
 ```
-├── src/                  # Svelte Frontend
+├── src/                         # Svelte Frontend
 │   ├── lib/
-│   │   ├── components/   # UI primitives (DataTable, Sidebar, etc.)
-│   │   └── stores/       # Global state (cluster, settings, header)
-│   ├── routes/           # File-based routing
+│   │   ├── components/
+│   │   │   ├── ui/              # Reusable UI components
+│   │   │   ├── IconSidebar.svelte    # Left-most navigation
+│   │   │   ├── ResourceSidebar.svelte # Cluster resource navigation
+│   │   │   └── ClusterImportModal.svelte
+│   │   └── stores/
+│   │       ├── clusters.svelte.ts     # Cluster CRUD operations
+│   │       ├── activeCluster.svelte.ts # Current cluster state
+│   │       ├── bookmarks.svelte.ts    # Sidebar bookmarks
+│   │       └── settings.svelte.ts     # App settings
+│   ├── routes/
+│   │   ├── +page.svelte              # Cluster overview
+│   │   ├── cluster/[id]/             # Cluster-scoped routes
+│   │   │   ├── pods/
+│   │   │   ├── deployments/
+│   │   │   ├── settings/             # Cluster settings
+│   │   │   └── ...
+│   │   └── settings/                 # App settings
 │   └── ...
 ├── src-tauri/            # Rust Backend
 │   ├── src/
-│   │   ├── config/       # Kubeconfig & App settings management
-│   │   ├── k8s.rs        # Kubernetes API logic & Watchers
+│   │   ├── cluster_manager.rs # SQLite cluster storage
+│   │   ├── import.rs          # Kubeconfig import & extraction
+│   │   ├── k8s.rs             # Kubernetes API & Watchers
 │   │   └── ...
 │   └── ...
 ```
@@ -78,9 +96,20 @@ pnpm tauri build
 
 ## Configuration
 
-Kore stores its configuration and imported kubeconfigs in:
+Kore stores its configuration in:
 - **macOS/Linux**: `~/.kore/`
 - **Windows**: `C:\Users\<User>\.kore\`
+
+Storage structure:
+```
+~/.kore/
+├── clusters.db              # SQLite database (cluster metadata)
+├── kubeconfigs/             # Extracted single-context configs
+│   ├── <uuid-1>.yaml
+│   ├── <uuid-2>.yaml
+│   └── ...
+└── bookmarks.json           # Sidebar bookmarks
+```
 
 ## License
 

@@ -30,6 +30,7 @@ pub fn run() {
             k8s::list_pods,
             k8s::delete_pod,
             k8s::get_pod_events,
+            k8s::stream_container_logs,
             k8s::start_pod_watch,
             config::import_kubeconfig
         ])

@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./layout.css";
   import Sidebar from "$lib/components/Sidebar.svelte";
+  import BottomDrawer from "$lib/components/BottomDrawer.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { headerStore } from "$lib/stores/header.svelte";
 
@@ -9,7 +10,7 @@
   $effect(() => {
     if (typeof document !== "undefined") {
       const root = document.documentElement;
-      root.classList.remove("rusty", "rusty-light", "dracula", "alucard");
+      root.classList.remove("rusty", "rusty-light", "dracula", "alucard", "kore", "kore-light");
       root.classList.add(settingsStore.value.theme);
     }
   });
@@ -33,4 +34,7 @@
       {@render children()}
     </div>
   </main>
+
+  <!-- Global Bottom Drawer -->
+  <BottomDrawer />
 </div>

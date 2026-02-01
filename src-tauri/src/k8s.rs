@@ -600,6 +600,63 @@ pub async fn get_pod_events(
     Ok(event_infos)
 }
 
+#[tauri::command]
+pub async fn stream_container_logs(
+    window: Window,
+    context_name: String,
+    namespace: String,
+    pod_name: String,
+    container_name: String,
+    stream_id: String,
+) -> Result<(), String> {
+    use k8s_openapi::api::core::v1::Pod;
+    use kube::api::LogParams;
+    use futures::{AsyncBufReadExt, TryStreamExt};
+
+    let client = create_client_for_context(&context_name).await?;
+    let pods: Api<Pod> = Api::namespaced(client, &namespace);
+
+    let log_params = LogParams {
+        follow: true,
+        tail_lines: Some(1000),
+        container: Some(container_name.clone()),
+        ..Default::default()
+    };
+
+    // Spawn a task to stream logs
+    tauri::async_runtime::spawn(async move {
+        match pods.log_stream(&pod_name, &log_params).await {
+            Ok(stream) => {
+                let mut lines = stream.lines();
+                loop {
+                    match lines.try_next().await {
+                        Ok(Some(line)) => {
+                            let event_name = format!("container_logs_{}", stream_id);
+                            if let Err(e) = window.emit(&event_name, line) {
+                                println!("Failed to emit log line: {}", e);
+                                break;
+                            }
+                        }
+                        Ok(None) => {
+                            // Stream ended
+                            break;
+                        }
+                        Err(e) => {
+                            println!("Error reading log line: {}", e);
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Failed to open log stream: {}", e);
+            }
+        }
+    });
+
+    Ok(())
+}
+
 #[derive(Clone, serde::Serialize)]
 #[serde(tag = "type", content = "payload")]
 pub enum PodEvent {

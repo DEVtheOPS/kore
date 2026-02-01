@@ -8,6 +8,7 @@
     title?: string;
     onclose?: () => void;
     children: Snippet;
+    headerActions?: Snippet;
     width?: string;
   }
 
@@ -16,6 +17,7 @@
     title = 'Details', 
     onclose, 
     children,
+    headerActions,
     width = 'w-[600px]'
   }: Props = $props();
 
@@ -48,12 +50,17 @@
   >
     <div class="flex items-center justify-between p-4 border-b border-border-subtle">
       <h2 class="text-lg font-bold">{title}</h2>
-      <button 
-        onclick={close}
-        class="p-1 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
-      >
-        <X size={20} />
-      </button>
+      <div class="flex items-center gap-2">
+        {#if headerActions}
+          {@render headerActions()}
+        {/if}
+        <button 
+          onclick={close}
+          class="p-1 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
     </div>
     
     <div class="flex-1 overflow-y-auto p-4">

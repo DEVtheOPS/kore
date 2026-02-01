@@ -1,6 +1,9 @@
 <script lang="ts">
   import Drawer from '$lib/components/ui/Drawer.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import { Edit, FileText } from 'lucide-svelte';
+  import { bottomDrawerStore } from '$lib/stores/bottomDrawer.svelte';
+  import { clusterStore } from '$lib/stores/cluster.svelte';
 
   interface ContainerPort {
     name?: string;
@@ -114,9 +117,55 @@
     if (lower === 'failed' || lower === 'crashloopbackoff') return 'error';
     return 'info';
   }
+
+  function handleEdit() {
+    if (!pod) return;
+    // TODO: Implement edit functionality
+    console.log('Edit pod:', pod.name);
+  }
+
+  function handleLogs(containerName: string) {
+    if (!pod) return;
+    
+    const streamId = `${pod.namespace}-${pod.name}-${containerName}`;
+    bottomDrawerStore.openTab({
+      id: streamId,
+      title: `${containerName}.log`,
+      type: 'logs',
+      data: {
+        contextName: clusterStore.active,
+        namespace: pod.namespace,
+        podName: pod.name,
+        containerName: containerName,
+        streamId: streamId,
+      },
+      onClose: () => {
+        console.log(`Closed logs for ${containerName}`);
+        // The stream will be cleaned up when the component unmounts
+      },
+    });
+  }
 </script>
 
 <Drawer bind:open title={pod?.name || 'Pod Details'}>
+  {#snippet headerActions()}
+    <button
+      class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
+      onclick={handleEdit}
+      title="Edit"
+    >
+      <Edit size={18} />
+    </button>
+    {#if pod && pod.container_details && pod.container_details.length === 1}
+      <button
+        class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
+        onclick={() => handleLogs(pod.container_details[0].name)}
+        title="View Logs"
+      >
+        <FileText size={18} />
+      </button>
+    {/if}
+  {/snippet}
   {#if pod}
     <div class="space-y-6">
       <!-- Overview Section -->
@@ -177,9 +226,18 @@
               <div class="p-4 bg-bg-panel rounded-md space-y-2">
                 <div class="flex items-center justify-between">
                   <div class="font-semibold">{container.name}</div>
-                  <Badge variant={container.ready ? 'success' : 'warning'}>
-                    {container.ready ? 'Ready' : 'Not Ready'}
-                  </Badge>
+                  <div class="flex items-center gap-2">
+                    <button
+                      class="p-1 hover:bg-bg-main rounded transition-colors text-text-muted hover:text-text"
+                      onclick={() => handleLogs(container.name)}
+                      title="View Logs"
+                    >
+                      <FileText size={16} />
+                    </button>
+                    <Badge variant={container.ready ? 'success' : 'warning'}>
+                      {container.ready ? 'Ready' : 'Not Ready'}
+                    </Badge>
+                  </div>
                 </div>
                 <div class="text-xs text-text-muted space-y-1">
                   <div><span class="font-semibold">Image:</span> {container.image}</div>

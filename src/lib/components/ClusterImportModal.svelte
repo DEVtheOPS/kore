@@ -138,8 +138,8 @@
       for (const ctx of toImport) {
         await invoke("import_add_cluster", {
           name: ctx.display_name,
-          contextName: ctx.context_name,
-          sourceFile: ctx.source_file,
+          context_name: ctx.context_name,
+          source_file: ctx.source_file,
           icon: ctx.icon !== "🌐" ? ctx.icon : null,
           description: null,
           tags: [],

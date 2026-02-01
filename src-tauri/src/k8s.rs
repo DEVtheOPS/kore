@@ -1,4 +1,5 @@
 // ... imports ...
+use crate::cluster_manager::ClusterManagerState;
 use crate::config;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::Pod;
@@ -6,7 +7,7 @@ use kube::config::Kubeconfig;
 use kube::runtime::watcher;
 use kube::{Api, Client, Config};
 use std::path::PathBuf;
-use tauri::{Emitter, Window};
+use tauri::{Emitter, State, Window};
 
 // Helper to find which file contains the context
 fn find_kubeconfig_path_for_context(context_name: &str) -> Option<PathBuf> {
@@ -62,6 +63,39 @@ async fn create_client_for_context(context_name: &str) -> Result<Client, String>
 
     let options = kube::config::KubeConfigOptions {
         context: Some(context_name.to_string()),
+        ..Default::default()
+    };
+
+    let config = Config::from_custom_kubeconfig(kubeconfig, &options)
+        .await
+        .map_err(|e| format!("Failed to load config: {}", e))?;
+
+    Client::try_from(config).map_err(|e| format!("Failed to create client: {}", e))
+}
+
+// NEW: Helper to create client from cluster ID
+async fn create_client_for_cluster(cluster_id: &str, state: &State<'_, ClusterManagerState>) -> Result<Client, String> {
+    // Get config path while holding lock, then drop it immediately
+    let config_path = {
+        let manager = state.0.lock().unwrap();
+        let cluster = manager.get_cluster(cluster_id)?
+            .ok_or_else(|| format!("Cluster '{}' not found", cluster_id))?;
+        PathBuf::from(&cluster.config_path)
+    }; // Lock is dropped here
+    
+    if !config_path.exists() {
+        return Err(format!("Config file not found: {:?}", config_path));
+    }
+
+    let kubeconfig = Kubeconfig::read_from(&config_path)
+        .map_err(|e| format!("Failed to read kubeconfig {:?}: {}", config_path, e))?;
+
+    // The extracted config should have only one context, use current_context
+    let context_name = kubeconfig.current_context.as_ref()
+        .ok_or_else(|| "No current context in kubeconfig".to_string())?;
+
+    let options = kube::config::KubeConfigOptions {
+        context: Some(context_name.clone()),
         ..Default::default()
     };
 
@@ -823,4 +857,224 @@ pub struct PodEventInfo {
     first_timestamp: Option<String>,
     last_timestamp: Option<String>,
     source: String,
+}
+
+// NEW: Cluster-based commands using cluster IDs
+
+#[tauri::command]
+pub async fn cluster_list_namespaces(
+    cluster_id: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<Vec<String>, String> {
+    use k8s_openapi::api::core::v1::Namespace;
+    use kube::api::ListParams;
+
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let ns_api: Api<Namespace> = Api::all(client);
+    let lp = ListParams::default();
+
+    let list = ns_api
+        .list(&lp)
+        .await
+        .map_err(|e| format!("Failed to list namespaces: {}", e))?;
+
+    let namespaces: Vec<String> = list.items.iter().map(|ns| ns.metadata.name.clone().unwrap_or_default()).collect();
+
+    Ok(namespaces)
+}
+
+#[tauri::command]
+pub async fn cluster_list_pods(
+    cluster_id: String,
+    namespace: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<Vec<PodSummary>, String> {
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    
+    let pods: Api<Pod> = if namespace == "all" {
+        Api::all(client)
+    } else {
+        Api::namespaced(client, &namespace)
+    };
+
+    let lp = kube::api::ListParams::default();
+    let list = pods
+        .list(&lp)
+        .await
+        .map_err(|e| format!("Failed to list pods: {}", e))?;
+
+    let summaries = list.items.iter().map(|p| map_pod_to_summary(p.clone())).collect();
+    Ok(summaries)
+}
+
+#[tauri::command]
+pub async fn cluster_delete_pod(
+    cluster_id: String,
+    namespace: String,
+    pod_name: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<(), String> {
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let pods: Api<Pod> = Api::namespaced(client, &namespace);
+    
+    pods.delete(&pod_name, &kube::api::DeleteParams::default())
+        .await
+        .map_err(|e| format!("Failed to delete pod: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn cluster_get_pod_events(
+    cluster_id: String,
+    namespace: String,
+    pod_name: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<Vec<PodEventInfo>, String> {
+    use k8s_openapi::api::core::v1::Event;
+    use kube::api::ListParams;
+
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let events_api: Api<Event> = Api::namespaced(client, &namespace);
+
+    let field_selector = format!("involvedObject.name={}", pod_name);
+    let lp = ListParams::default().fields(&field_selector);
+
+    let events_list = events_api
+        .list(&lp)
+        .await
+        .map_err(|e| format!("Failed to list events: {}", e))?;
+
+    let mut event_infos: Vec<PodEventInfo> = events_list
+        .items
+        .iter()
+        .map(|event| {
+            let event_type = event.type_.as_ref().unwrap_or(&"Unknown".to_string()).clone();
+            let reason = event.reason.as_ref().unwrap_or(&"Unknown".to_string()).clone();
+            let message = event.message.as_ref().unwrap_or(&"".to_string()).clone();
+            let count = event.count.unwrap_or(1);
+            let first_timestamp = event.first_timestamp.as_ref().map(|t| t.0.to_string());
+            let last_timestamp = event.last_timestamp.as_ref().map(|t| t.0.to_string());
+            let source = event
+                .source
+                .as_ref()
+                .and_then(|s| s.component.as_ref())
+                .cloned()
+                .unwrap_or_default();
+
+            PodEventInfo {
+                event_type,
+                reason,
+                message,
+                count,
+                first_timestamp,
+                last_timestamp,
+                source,
+            }
+        })
+        .collect();
+
+    event_infos.sort_by(|a, b| b.last_timestamp.cmp(&a.last_timestamp));
+
+    Ok(event_infos)
+}
+
+#[tauri::command]
+pub async fn cluster_stream_container_logs(
+    cluster_id: String,
+    namespace: String,
+    pod_name: String,
+    container_name: String,
+    stream_id: String,
+    window: Window,
+    state: State<'_, ClusterManagerState>,
+) -> Result<(), String> {
+    use futures::{AsyncBufReadExt, TryStreamExt};
+    use kube::api::LogParams;
+
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let pods: Api<Pod> = Api::namespaced(client, &namespace);
+
+    let log_params = LogParams {
+        follow: true,
+        tail_lines: Some(1000),
+        container: Some(container_name.clone()),
+        ..Default::default()
+    };
+
+    tauri::async_runtime::spawn(async move {
+        match pods.log_stream(&pod_name, &log_params).await {
+            Ok(stream) => {
+                let mut lines = stream.lines();
+                loop {
+                    match lines.try_next().await {
+                        Ok(Some(line)) => {
+                            let event_name = format!("container_logs_{}", stream_id);
+                            if let Err(e) = window.emit(&event_name, line) {
+                                println!("Failed to emit log line: {}", e);
+                                break;
+                            }
+                        }
+                        Ok(None) => break,
+                        Err(e) => {
+                            println!("Error reading log line: {}", e);
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Failed to open log stream: {}", e);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn cluster_start_pod_watch(
+    cluster_id: String,
+    namespace: String,
+    window: Window,
+    state: State<'_, ClusterManagerState>,
+) -> Result<(), String> {
+    use kube::runtime::watcher::Config as WatchConfig;
+
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+
+    let api: Api<Pod> = if namespace == "all" {
+        Api::all(client)
+    } else {
+        Api::namespaced(client, &namespace)
+    };
+
+    let config = WatchConfig::default();
+
+    tauri::async_runtime::spawn(async move {
+        let mut stream = watcher(api, config).boxed();
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(event) => {
+                    let pod_event = match event {
+                        watcher::Event::Apply(pod) => PodEvent::Added(map_pod_to_summary(pod)),
+                        watcher::Event::Delete(pod) => PodEvent::Deleted(map_pod_to_summary(pod)),
+                        watcher::Event::InitApply(pod) => PodEvent::Added(map_pod_to_summary(pod)),
+                        _ => continue,
+                    };
+
+                    if let Err(e) = window.emit("pod_event", pod_event) {
+                        println!("Failed to emit event: {}", e);
+                        break;
+                    }
+                }
+                Err(e) => {
+                    println!("Watch error: {}", e);
+                }
+            }
+        }
+    });
+
+    Ok(())
 }

@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 use std::fs;
 use serde::{Serialize, Deserialize};
-use notify::{Watcher, RecursiveMode, RecommendedWatcher, Config};
-use tauri::{Emitter, AppHandle};
-use std::sync::mpsc::channel;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[allow(dead_code)]
@@ -73,39 +70,3 @@ pub async fn import_kubeconfig(path: String) -> Result<String, String> {
     Ok(dest_name)
 }
 
-use std::time::{Duration, Instant};
-
-pub fn start_watcher(app_handle: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let (tx, rx) = channel();
-        
-        let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-        
-        let path = get_kubeconfigs_dir();
-        if let Err(e) = watcher.watch(&path, RecursiveMode::NonRecursive) {
-            eprintln!("Failed to watch kubeconfigs dir: {}", e);
-            return;
-        }
-
-        let mut last_event_time = Instant::now();
-        let debounce_duration = Duration::from_millis(500);
-
-        for res in rx {
-            match res {
-                Ok(event) => {
-                    // Simple debounce
-                    if last_event_time.elapsed() < debounce_duration {
-                        continue;
-                    }
-
-                    // Filter for meaningful events
-                    if event.kind.is_create() || event.kind.is_remove() || event.kind.is_modify() {
-                        let _ = app_handle.emit("kubeconfig_update", ());
-                        last_event_time = Instant::now();
-                    }
-                },
-                Err(e) => eprintln!("Watch error: {:?}", e),
-            }
-        }
-    });
-}

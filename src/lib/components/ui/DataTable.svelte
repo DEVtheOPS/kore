@@ -13,7 +13,7 @@
     danger?: boolean;
   }
 
-  interface Column {
+  export interface Column {
     id: string;
     label: string;
     sortable?: boolean;

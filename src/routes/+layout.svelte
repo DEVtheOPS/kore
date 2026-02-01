@@ -1,11 +1,12 @@
 <script lang="ts">
   import "./layout.css";
-  import Sidebar from "$lib/components/Sidebar.svelte";
-  import BottomDrawer from "$lib/components/BottomDrawer.svelte";
+  import IconSidebar from "$lib/components/IconSidebar.svelte";
+  import ClusterImportModal from "$lib/components/ClusterImportModal.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
-  import { headerStore } from "$lib/stores/header.svelte";
 
   let { children } = $props();
+
+  let importModalOpen = $state(false);
 
   $effect(() => {
     if (typeof document !== "undefined") {
@@ -14,25 +15,25 @@
       root.classList.add(settingsStore.value.theme);
     }
   });
+
+  function openImportModal() {
+    importModalOpen = true;
+  }
+
+  function closeImportModal() {
+    importModalOpen = false;
+  }
 </script>
 
 <div class="flex h-screen w-screen bg-bg-main text-text-main overflow-hidden">
-  <!-- Sidebar -->
-  <Sidebar />
+  <!-- Icon Sidebar -->
+  <IconSidebar onAddCluster={openImportModal} />
 
-  <!-- Main content area -->
-  <main class="flex-1 flex flex-col h-full overflow-hidden">
-    <!-- Header Bar -->
-    <header class="h-14 border-b border-border-subtle flex items-center justify-between px-6 bg-bg-main">
-      <h2 class="font-semibold text-lg">{headerStore.title}</h2>
-    </header>
-
-    <!-- Content Area -->
-    <div class="flex-1 overflow-auto p-6 bg-bg-panel">
-      {@render children()}
-    </div>
-
-    <!-- Global Bottom Drawer -->
-    <BottomDrawer />
-  </main>
+  <!-- Content Area (filled by nested layouts/pages) -->
+  <div class="flex-1 overflow-hidden">
+    {@render children()}
+  </div>
 </div>
+
+<!-- Import Modal -->
+<ClusterImportModal bind:isOpen={importModalOpen} onClose={closeImportModal} />

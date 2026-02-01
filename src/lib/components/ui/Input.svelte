@@ -4,6 +4,8 @@
     placeholder?: string;
     type?: string;
     class?: string;
+    id?: string;
+    onkeydown?: (e: KeyboardEvent) => void;
     oninput?: (e: Event) => void;
   }
 
@@ -11,7 +13,9 @@
     value = $bindable(''), 
     placeholder = '', 
     type = 'text',
-    class: className = '', 
+    class: className = '',
+    id,
+    onkeydown,
     oninput,
     ...rest
   }: Props = $props();
@@ -19,9 +23,11 @@
 
 <input
   {type}
+  {id}
   bind:value
   {placeholder}
   {oninput}
+  {onkeydown}
   class="
     flex w-full rounded-input border border-border-main bg-bg-panel px-3 py-2 text-sm text-text-main 
     placeholder:text-text-muted 

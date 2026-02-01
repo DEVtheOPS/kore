@@ -3,11 +3,12 @@
   import { listen } from "@tauri-apps/api/event";
   import { confirm } from "@tauri-apps/plugin-dialog";
   import { onMount, onDestroy } from "svelte";
+  import { page } from "$app/stores";
   import DataTable from "$lib/components/ui/DataTable.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
   import PodDetailDrawer from "$lib/components/PodDetailDrawer.svelte";
   import { Trash2 } from "lucide-svelte";
-  import { clusterStore } from "$lib/stores/cluster.svelte";
+  import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
   import { headerStore } from "$lib/stores/header.svelte";
 
   interface ContainerPort {
@@ -129,7 +130,7 @@
   ]);
 
   async function startWatch() {
-    if (!clusterStore.active) return;
+    if (!activeClusterStore.contextName) return;
 
     loading = true;
     error = "";
@@ -138,8 +139,8 @@
     // but sometimes good for immediate feedback)
     try {
       pods = await invoke("list_pods", {
-        contextName: clusterStore.active,
-        namespace: clusterStore.activeNamespace,
+        contextName: activeClusterStore.contextName,
+        namespace: activeClusterStore.activeNamespace,
       });
     } catch (e) {
       console.error(e);
@@ -155,8 +156,8 @@
 
     // Start Watch
     invoke("start_pod_watch", {
-      contextName: clusterStore.active,
-      namespace: clusterStore.activeNamespace,
+      contextName: activeClusterStore.contextName,
+      namespace: activeClusterStore.activeNamespace,
     }).catch((e) => console.error("Watch failed to start", e));
   }
 
@@ -200,7 +201,7 @@
   });
 
   $effect(() => {
-    if (clusterStore.active && clusterStore.activeNamespace) {
+    if (activeClusterStore.contextName && activeClusterStore.activeNamespace) {
       // Re-trigger watch when context changes
       // Ideally we should tell backend to stop previous watch,
       // but current simple impl just spawns new one.
@@ -234,7 +235,7 @@
     podEvents = [];
     try {
       podEvents = await invoke<PodEventInfo[]>("get_pod_events", {
-        contextName: clusterStore.active,
+        contextName: activeClusterStore.contextName,
         namespace: row.namespace,
         podName: row.name,
       });
@@ -272,7 +273,7 @@
 
     try {
       await invoke("delete_pod", {
-        contextName: clusterStore.active,
+        contextName: activeClusterStore.contextName,
         namespace: pod.namespace,
         podName: pod.name,
       });
@@ -324,7 +325,7 @@
           const pod = pods.find((p) => p.name === name);
           if (pod) {
             return invoke("delete_pod", {
-              contextName: clusterStore.active,
+              contextName: activeClusterStore.contextName,
               namespace: pod.namespace,
               podName: pod.name,
             }).catch((e) => console.error(`Failed to delete ${name}:`, e));

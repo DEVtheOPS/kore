@@ -94,6 +94,21 @@
 pnpm tauri build
 ```
 
+### Running Tests
+
+```bash
+# Run all Playwright E2E tests
+pnpm test
+
+# Run tests with UI
+pnpm test:ui
+
+# Run specific test file
+pnpm test tests/01-layout-navigation.spec.ts
+```
+
+See [tests/README.md](tests/README.md) for more details.
+
 ## Configuration
 
 Kore stores its configuration in:

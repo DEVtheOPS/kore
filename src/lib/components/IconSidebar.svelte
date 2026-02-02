@@ -91,6 +91,15 @@
     <Home size={20} class={isActive("/") && !$page.url.pathname.startsWith("/cluster") ? "text-primary" : "text-text-main"} />
   </a>
 
+  <!-- Add Cluster -->
+  <button
+    onclick={onAddCluster}
+    class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors"
+    title="Add Cluster"
+  >
+    <Plus size={20} />
+  </button>
+
   <!-- Divider -->
   <div class="h-px bg-border-subtle mx-2 my-1"></div>
 
@@ -149,15 +158,6 @@
 
   <!-- Divider -->
   <div class="h-px bg-border-subtle mx-2 my-1"></div>
-
-  <!-- Add Cluster -->
-  <button
-    onclick={onAddCluster}
-    class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors"
-    title="Add Cluster"
-  >
-    <Plus size={20} />
-  </button>
 
   <!-- Settings -->
   <a

@@ -97,6 +97,11 @@ pub fn run() {
             k8s::cluster_delete_role,
             k8s::cluster_list_cluster_roles,
             k8s::cluster_delete_cluster_role,
+            // Deployment details, pods, and events
+            k8s::cluster_get_deployment_details,
+            k8s::cluster_get_deployment_pods,
+            k8s::cluster_get_deployment_replicasets,
+            k8s::cluster_get_deployment_events,
             // Cluster management commands
             cluster_manager::db_list_clusters,
             cluster_manager::db_get_cluster,

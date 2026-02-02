@@ -1,11 +1,4 @@
 <script lang="ts">
-  import { headerStore } from '$lib/stores/header.svelte';
-
-  $effect(() => {
-    headerStore.setTitle("CronJobs");
-  });
+ import WorkloadList from "$lib/components/WorkloadList.svelte";
 </script>
-
-<div class="p-4">
-  <h2 class="text-xl">CronJobs Placeholder</h2>
-</div>
+<WorkloadList title="CronJobs" listCommand="cluster_list_cronjobs" deleteCommand="cluster_delete_cronjob" />

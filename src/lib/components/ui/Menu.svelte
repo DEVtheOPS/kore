@@ -6,6 +6,7 @@
     label: string;
     action: () => void;
     danger?: boolean;
+    icon?: any;
   }
 
   interface Props {
@@ -85,6 +86,9 @@
             {item.danger ? 'text-error hover:bg-error/10' : 'text-text-main'}"
           onclick={(e) => handleSelect(item, e)}
         >
+          {#if item.icon}
+            <item.icon size={14} />
+          {/if}
           {item.label}
         </button>
       {/each}

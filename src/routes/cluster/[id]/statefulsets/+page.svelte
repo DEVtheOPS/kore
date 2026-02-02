@@ -1,11 +1,4 @@
 <script lang="ts">
-  import { headerStore } from '$lib/stores/header.svelte';
-
-  $effect(() => {
-    headerStore.setTitle("StatefulSets");
-  });
+ import WorkloadList from "$lib/components/WorkloadList.svelte";
 </script>
-
-<div class="p-4">
-  <h2 class="text-xl">StatefulSets Placeholder</h2>
-</div>
+<WorkloadList title="StatefulSets" listCommand="cluster_list_statefulsets" deleteCommand="cluster_delete_statefulset" />

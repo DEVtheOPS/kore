@@ -2,6 +2,8 @@
 use crate::cluster_manager::ClusterManagerState;
 use crate::config;
 use futures::StreamExt;
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
+use k8s_openapi::api::batch::v1::{CronJob, Job};
 use k8s_openapi::api::core::v1::{Event, Node, Pod};
 use kube::config::Kubeconfig;
 use kube::runtime::watcher;
@@ -1232,3 +1234,256 @@ pub async fn cluster_get_events(
     
     Ok(warnings)
 }
+
+// --- Workload Resources ---
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct WorkloadSummary {
+    pub id: String,
+    pub name: String,
+    pub namespace: String,
+    pub age: String,
+    pub labels: std::collections::BTreeMap<String, String>,
+    pub status: String,
+    pub images: Vec<String>,
+    pub created_at: i64,
+}
+
+fn calculate_age(timestamp: Option<&k8s_openapi::apimachinery::pkg::apis::meta::v1::Time>) -> String {
+    if let Some(ts) = timestamp {
+        let now = chrono::Utc::now();
+        // Convert k8s Time (jiff/chrono wrapper) to chrono DateTime
+        // Using string parsing as reliable fallback
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&ts.0.to_string()) {
+             let duration = now.signed_duration_since(dt.with_timezone(&chrono::Utc));
+             if duration.num_days() > 0 {
+                format!("{}d", duration.num_days())
+            } else if duration.num_hours() > 0 {
+                format!("{}h", duration.num_hours())
+            } else if duration.num_minutes() > 0 {
+                format!("{}m", duration.num_minutes())
+            } else {
+                format!("{}s", duration.num_seconds())
+            }
+        } else {
+            "-".to_string()
+        }
+    } else {
+        "-".to_string()
+    }
+}
+
+fn get_created_at(timestamp: Option<&k8s_openapi::apimachinery::pkg::apis::meta::v1::Time>) -> i64 {
+    if let Some(ts) = timestamp {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&ts.0.to_string()) {
+            return dt.timestamp();
+        }
+    }
+    0
+}
+
+fn map_deployment_to_summary(d: Deployment) -> WorkloadSummary {
+    let meta = d.metadata;
+    let spec = d.spec.unwrap_or_default();
+    let status = d.status.unwrap_or_default();
+    
+    let replicas = status.replicas.unwrap_or(0);
+    let ready = status.ready_replicas.unwrap_or(0);
+    let status_str = format!("{}/{}", ready, spec.replicas.unwrap_or(1));
+
+    let images = if let Some(template) = spec.template.spec {
+        template.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str,
+        images,
+    }
+}
+
+fn map_statefulset_to_summary(s: StatefulSet) -> WorkloadSummary {
+    let meta = s.metadata;
+    let spec = s.spec.unwrap_or_default();
+    let status = s.status.unwrap_or_default();
+    
+    let ready = status.ready_replicas.unwrap_or(0);
+    let replicas = spec.replicas.unwrap_or(1);
+    let status_str = format!("{}/{}", ready, replicas);
+
+    let images = if let Some(template) = spec.template.spec {
+        template.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str,
+        images,
+    }
+}
+
+fn map_daemonset_to_summary(d: DaemonSet) -> WorkloadSummary {
+    let meta = d.metadata;
+    let spec = d.spec.unwrap_or_default();
+    let status = d.status.unwrap_or_default();
+    
+    let desired = status.desired_number_scheduled;
+    let ready = status.number_ready;
+    let status_str = format!("{}/{}", ready, desired);
+
+    let images = if let Some(template) = spec.template.spec {
+        template.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str,
+        images,
+    }
+}
+
+fn map_replicaset_to_summary(r: ReplicaSet) -> WorkloadSummary {
+    let meta = r.metadata;
+    let spec = r.spec.unwrap_or_default();
+    let status = r.status.unwrap_or_default();
+    
+    let ready = status.ready_replicas.unwrap_or(0);
+    let replicas = spec.replicas.unwrap_or(1);
+    let status_str = format!("{}/{}", ready, replicas);
+
+    let images = if let Some(template) = spec.template {
+        if let Some(tspec) = template.spec {
+            tspec.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+        } else { vec![] }
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str,
+        images,
+    }
+}
+
+fn map_job_to_summary(j: Job) -> WorkloadSummary {
+    let meta = j.metadata;
+    let spec = j.spec.unwrap_or_default();
+    let status = j.status.unwrap_or_default();
+    
+    let succeeded = status.succeeded.unwrap_or(0);
+    let completions = spec.completions.unwrap_or(1);
+    let status_str = format!("{}/{}", succeeded, completions);
+
+    let images = if let Some(template) = spec.template.spec {
+        template.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str,
+        images,
+    }
+}
+
+fn map_cronjob_to_summary(c: CronJob) -> WorkloadSummary {
+    let meta = c.metadata;
+    let spec = c.spec.unwrap_or_default();
+    let status = c.status.unwrap_or_default();
+    
+    let active = status.active.map(|a| a.len()).unwrap_or(0);
+    let status_str = if active > 0 { "Active" } else { "Suspended" }; // Simplified
+
+    let images = if let Some(job_template) = spec.job_template.spec {
+        if let Some(template) = job_template.template.spec {
+            template.containers.into_iter().map(|c| c.image.unwrap_or_default()).collect()
+        } else { vec![] }
+    } else {
+        vec![]
+    };
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: status_str.to_string(),
+        images,
+    }
+}
+
+macro_rules! impl_workload_commands {
+    ($resource:ty, $list_fn:ident, $delete_fn:ident, $map_fn:ident) => {
+        #[tauri::command]
+        pub async fn $list_fn(
+            cluster_id: String,
+            namespace: Option<String>,
+            state: State<'_, ClusterManagerState>,
+        ) -> Result<Vec<WorkloadSummary>, String> {
+            let client = create_client_for_cluster(&cluster_id, &state).await?;
+            let api: Api<$resource> = if let Some(ns) = namespace {
+                Api::namespaced(client, &ns)
+            } else {
+                Api::all(client)
+            };
+
+            let list = api.list(&Default::default()).await.map_err(|e| e.to_string())?;
+            Ok(list.items.into_iter().map($map_fn).collect())
+        }
+
+        #[tauri::command]
+        pub async fn $delete_fn(
+            cluster_id: String,
+            namespace: String,
+            name: String,
+            state: State<'_, ClusterManagerState>,
+        ) -> Result<(), String> {
+            let client = create_client_for_cluster(&cluster_id, &state).await?;
+            let api: Api<$resource> = Api::namespaced(client, &namespace);
+            api.delete(&name, &Default::default()).await.map_err(|e| e.to_string())?;
+            Ok(())
+        }
+    };
+}
+
+impl_workload_commands!(Deployment, cluster_list_deployments, cluster_delete_deployment, map_deployment_to_summary);
+impl_workload_commands!(StatefulSet, cluster_list_statefulsets, cluster_delete_statefulset, map_statefulset_to_summary);
+impl_workload_commands!(DaemonSet, cluster_list_daemonsets, cluster_delete_daemonset, map_daemonset_to_summary);
+impl_workload_commands!(ReplicaSet, cluster_list_replicasets, cluster_delete_replicaset, map_replicaset_to_summary);
+impl_workload_commands!(Job, cluster_list_jobs, cluster_delete_job, map_job_to_summary);
+impl_workload_commands!(CronJob, cluster_list_cronjobs, cluster_delete_cronjob, map_cronjob_to_summary);

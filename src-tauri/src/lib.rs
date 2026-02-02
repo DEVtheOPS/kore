@@ -48,6 +48,13 @@ pub fn run() {
             k8s::cluster_start_pod_watch,
             k8s::cluster_get_metrics,
             k8s::cluster_get_events,
+            // Workload commands
+            k8s::cluster_list_deployments, k8s::cluster_delete_deployment,
+            k8s::cluster_list_statefulsets, k8s::cluster_delete_statefulset,
+            k8s::cluster_list_daemonsets, k8s::cluster_delete_daemonset,
+            k8s::cluster_list_replicasets, k8s::cluster_delete_replicaset,
+            k8s::cluster_list_jobs, k8s::cluster_delete_job,
+            k8s::cluster_list_cronjobs, k8s::cluster_delete_cronjob,
             // Cluster management commands
             cluster_manager::db_list_clusters,
             cluster_manager::db_get_cluster,

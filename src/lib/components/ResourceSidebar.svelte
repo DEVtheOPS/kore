@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    LayoutDashboard,
     Layers,
     Settings as SettingsIcon,
     Box,
@@ -83,7 +84,15 @@
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto py-4 px-2 space-y-1">
     <a
-      href="/cluster/{clusterId}"
+      href="/cluster/{clusterId}/dashboard"
+      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
+    >
+      <LayoutDashboard size={18} class="group-hover:text-primary transition-colors" />
+      <span>Dashboard</span>
+    </a>
+
+    <a
+      href="/cluster/{clusterId}/nodes"
       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
     >
       <Cpu size={18} class="group-hover:text-primary transition-colors" />

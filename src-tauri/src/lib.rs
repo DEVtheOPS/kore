@@ -46,6 +46,8 @@ pub fn run() {
             k8s::cluster_get_pod_events,
             k8s::cluster_stream_container_logs,
             k8s::cluster_start_pod_watch,
+            k8s::cluster_get_metrics,
+            k8s::cluster_get_events,
             // Cluster management commands
             cluster_manager::db_list_clusters,
             cluster_manager::db_get_cluster,

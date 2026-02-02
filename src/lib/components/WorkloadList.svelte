@@ -24,9 +24,9 @@
   let selectedItem = $state<any>(null);
 
   const columns: Column[] = [
-    { id: "status", label: "Status", sortable: true },
     { id: "name", label: "Name", sortable: true },
     { id: "namespace", label: "Namespace", sortable: true },
+    { id: "status", label: "Status", sortable: true },
     { id: "images", label: "Images", sortable: true },
     { id: "age", label: "Age", sortable: true, sortKey: "created_at" },
   ];

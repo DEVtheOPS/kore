@@ -4,6 +4,8 @@
   import Chart from '$lib/components/ui/Chart.svelte';
   import { Edit, RefreshCw, Trash2 } from 'lucide-svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { activeClusterStore } from '$lib/stores/activeCluster.svelte';
   import yaml from 'js-yaml';
   import hljs from 'highlight.js/lib/core';
@@ -171,6 +173,13 @@
 
   function highlightYaml(yamlStr: string): string {
     return hljs.highlight(yamlStr, { language: 'yaml' }).value;
+  }
+
+  function handlePodClick(pod: DeploymentPodInfo) {
+    // Get the cluster ID from the current page params
+    const clusterId = $page.params.id;
+    // Navigate to pods page with query params to auto-open the pod
+    goto(`/cluster/${clusterId}/pods?pod=${encodeURIComponent(pod.name)}&namespace=${encodeURIComponent(pod.namespace)}`);
   }
 
   // Mock chart data for now
@@ -424,7 +433,13 @@
               </thead>
               <tbody>
                 {#each pods as pod}
-                  <tr class="border-b border-border/50 hover:bg-bg-panel/50">
+                  <tr
+                    class="border-b border-border/50 hover:bg-bg-panel/50 cursor-pointer transition-colors"
+                    onclick={() => handlePodClick(pod)}
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) => e.key === 'Enter' && handlePodClick(pod)}
+                  >
                     <td class="py-2 px-3 font-mono text-xs">{pod.name}</td>
                     <td class="py-2 px-3">{pod.ready}</td>
                     <td class="py-2 px-3">

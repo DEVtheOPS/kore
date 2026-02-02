@@ -189,6 +189,24 @@
     interval = setInterval(() => {
       now = Date.now();
     }, 1000);
+
+    // Check for deep-link query params to auto-open a pod
+    const podName = $page.url.searchParams.get('pod');
+    const podNamespace = $page.url.searchParams.get('namespace');
+    if (podName && podNamespace) {
+      // Wait for pods to load, then open the matching pod
+      const checkAndOpen = setInterval(() => {
+        const pod = pods.find((p) => p.name === podName && p.namespace === podNamespace);
+        if (pod) {
+          handleRowClick(pod);
+          clearInterval(checkAndOpen);
+          // Clear the query params from URL without reloading
+          window.history.replaceState({}, '', $page.url.pathname);
+        }
+      }, 100);
+      // Stop checking after 5 seconds
+      setTimeout(() => clearInterval(checkAndOpen), 5000);
+    }
   });
 
   $effect(() => {

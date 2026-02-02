@@ -118,8 +118,8 @@
             title={cluster.name}
           >
             {#if cluster.icon}
-              {#if cluster.icon.startsWith("http")}
-                <img src={cluster.icon} alt={cluster.name} class="w-6 h-6 rounded" />
+              {#if cluster.icon.startsWith("http") || cluster.icon.startsWith("data:")}
+                <img src={cluster.icon} alt={cluster.name} class="w-6 h-6 rounded object-contain" />
               {:else}
                 <span class="text-xl">{cluster.icon}</span>
               {/if}

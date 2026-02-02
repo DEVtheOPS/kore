@@ -151,8 +151,8 @@
           {#if column.id === "icon"}
             <div class="flex items-center justify-center">
               {#if cluster.icon}
-                {#if cluster.icon.startsWith("http")}
-                  <img src={cluster.icon} alt={cluster.name} class="w-8 h-8 rounded" />
+                {#if cluster.icon.startsWith("http") || cluster.icon.startsWith("data:")}
+                  <img src={cluster.icon} alt={cluster.name} class="w-8 h-8 rounded object-contain" />
                 {:else}
                   <span class="text-2xl">{cluster.icon}</span>
                 {/if}

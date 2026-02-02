@@ -55,6 +55,39 @@
     }
   }
 
+  function handleRowClick(row: any) {
+    selectedItem = row;
+    showDrawer = true;
+  }
+
+  async function handleBatchDelete(selectedIds: any[]) {
+    const itemsToDelete = data.filter((item) => selectedIds.includes(item.id));
+    
+    const confirmed = await confirm(
+      `Are you sure you want to delete ${itemsToDelete.length} ${title}?`,
+      { title: `Delete ${title}`, kind: "warning" }
+    );
+
+    if (confirmed) {
+      let successCount = 0;
+      for (const item of itemsToDelete) {
+        try {
+          await invoke(deleteCommand, {
+            clusterId: activeClusterStore.clusterId,
+            namespace: item.namespace,
+            name: item.name,
+          });
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to delete ${item.name}`, e);
+        }
+      }
+      if (successCount > 0) {
+        loadData();
+      }
+    }
+  }
+
   function getActions(row: any): MenuItem[] {
     return [
       {
@@ -101,6 +134,15 @@
         {loading}
         onRefresh={loadData}
         actions={getActions}
+        onRowClick={handleRowClick}
+        batchActions={[
+            {
+                label: "Delete",
+                icon: Trash2,
+                danger: true,
+                action: handleBatchDelete
+            }
+        ]}
         storageKey={`workload-${title.toLowerCase()}`}
     >
         {#snippet children({ row, column, value })}

@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { headerStore } from "$lib/stores/header.svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
-  import { Line, Doughnut } from "svelte-chartjs";
+  import Chart from "$lib/components/ui/Chart.svelte";
   import {
     Chart as ChartJS,
     Title,
@@ -210,7 +210,7 @@
         
         <!-- Gauge/Donut -->
         <div class="relative h-32 w-32 mx-auto mb-4">
-          <Doughnut data={getDoughnutData(metrics.cpu.usage, metrics.cpu.requests, metrics.cpu.limits, metrics.cpu.allocatable, metrics.cpu.capacity, 'cpu')} options={doughnutOptions} />
+          <Chart type="doughnut" data={getDoughnutData(metrics.cpu.usage, metrics.cpu.requests, metrics.cpu.limits, metrics.cpu.allocatable, metrics.cpu.capacity, 'cpu')} options={doughnutOptions} />
           <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span class="text-xl font-bold">
               {metrics.cpu.capacity > 0 ? Math.round(((metrics.cpu.usage > 0 ? metrics.cpu.usage : metrics.cpu.requests) / metrics.cpu.capacity) * 100) : 0}%
@@ -228,7 +228,7 @@
 
         <!-- History Line -->
         <div class="flex-1 min-h-0 w-full">
-           <Line data={getLineData("CPU", historyCpu, "#326CE5")} options={lineOptions} />
+           <Chart type="line" data={getLineData("CPU", historyCpu, "#326CE5")} options={lineOptions} />
         </div>
       </div>
 
@@ -238,7 +238,7 @@
         
         <!-- Gauge/Donut -->
         <div class="relative h-32 w-32 mx-auto mb-4">
-           <Doughnut data={getDoughnutData(metrics.memory.usage, metrics.memory.requests, metrics.memory.limits, metrics.memory.allocatable, metrics.memory.capacity, 'memory')} options={doughnutOptions} />
+           <Chart type="doughnut" data={getDoughnutData(metrics.memory.usage, metrics.memory.requests, metrics.memory.limits, metrics.memory.allocatable, metrics.memory.capacity, 'memory')} options={doughnutOptions} />
            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span class="text-xl font-bold">
               {metrics.memory.capacity > 0 ? Math.round(((metrics.memory.usage > 0 ? metrics.memory.usage : metrics.memory.requests) / metrics.memory.capacity) * 100) : 0}%
@@ -256,7 +256,7 @@
 
         <!-- History Line -->
         <div class="flex-1 min-h-0 w-full">
-            <Line data={getLineData("Memory", historyMem, "#805AD5")} options={lineOptions} />
+            <Chart type="line" data={getLineData("Memory", historyMem, "#805AD5")} options={lineOptions} />
         </div>
       </div>
 
@@ -266,7 +266,7 @@
         
          <!-- Gauge/Donut -->
         <div class="relative h-32 w-32 mx-auto mb-4">
-           <Doughnut data={getDoughnutData(metrics.pods.usage, 0, 0, metrics.pods.allocatable, metrics.pods.capacity, 'pods')} options={doughnutOptions} />
+           <Chart type="doughnut" data={getDoughnutData(metrics.pods.usage, 0, 0, metrics.pods.allocatable, metrics.pods.capacity, 'pods')} options={doughnutOptions} />
            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span class="text-xl font-bold">
               {metrics.pods.capacity > 0 ? Math.round((metrics.pods.usage / metrics.pods.capacity) * 100) : 0}%

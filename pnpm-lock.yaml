@@ -38,9 +38,6 @@ importers:
       lucide-svelte:
         specifier: ^0.563.0
         version: 0.563.0(svelte@5.49.1)
-      svelte-chartjs:
-        specifier: ^3.1.5
-        version: 3.1.5(chart.js@4.5.1)(svelte@5.49.1)
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
@@ -857,12 +854,6 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  svelte-chartjs@3.1.5:
-    resolution: {integrity: sha512-ka2zh7v5FiwfAX1oMflZ0HkNkgjHjFqANgRyC+vNYXfxtx2ku68Zo+2KgbKeBH2nS1ThDqkIACPzGxy4T0UaoA==}
-    peerDependencies:
-      chart.js: ^3.5.0 || ^4.0.0
-      svelte: ^4.0.0
-
   svelte-check@4.3.6:
     resolution: {integrity: sha512-uBkz96ElE3G4pt9E1Tw0xvBfIUQkeH794kDQZdAUk795UVMr+NJZpuFSS62vcmO/DuSalK83LyOwhgWq8YGU1Q==}
     engines: {node: '>= 18.0.0'}
@@ -1545,11 +1536,6 @@ snapshots:
       totalist: 3.0.1
 
   source-map-js@1.2.1: {}
-
-  svelte-chartjs@3.1.5(chart.js@4.5.1)(svelte@5.49.1):
-    dependencies:
-      chart.js: 4.5.1
-      svelte: 5.49.1
 
   svelte-check@4.3.6(picomatch@4.0.3)(svelte@5.49.1)(typescript@5.6.3):
     dependencies:

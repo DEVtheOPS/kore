@@ -36,6 +36,8 @@ notify = "8.2.0"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 uuid = { version = "1.20.0", features = ["v4", "serde"] }
 serde_yaml = "0.9.34"
+image = { version = "0.25.9", features = ["png", "jpeg"] }
+base64 = "0.22.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

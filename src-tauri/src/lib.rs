@@ -3,6 +3,7 @@ mod k8s;
 mod config;
 mod cluster_manager;
 mod import;
+mod image_utils;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -56,6 +57,8 @@ pub fn run() {
             import::import_discover_file,
             import::import_discover_folder,
             import::import_add_cluster,
+            // Image processing
+            image_utils::process_icon_file,
             // Legacy config
             config::import_kubeconfig
         ])

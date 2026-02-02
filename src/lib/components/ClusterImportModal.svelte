@@ -3,7 +3,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import Button from "$lib/components/ui/Button.svelte";
   import Input from "$lib/components/ui/Input.svelte";
-  import { X, FileText, Folder, Loader2 } from "lucide-svelte";
+  import { X, FileText, Folder, Loader2, Image as ImageIcon, Upload } from "lucide-svelte";
   import { clustersStore } from "$lib/stores/clusters.svelte";
 
   let { isOpen = $bindable(), onClose } = $props<{
@@ -123,6 +123,31 @@
     const ctx = discoveredContexts.find((c) => c.context_name === contextName);
     if (ctx) {
       ctx.icon = newIcon;
+    }
+  }
+
+  async function handleIconFileSelect(contextName: string) {
+    try {
+      const selected = await open({
+        multiple: false,
+        title: "Select Cluster Icon",
+        filters: [{
+          name: "Images",
+          extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico"]
+        }]
+      });
+
+      if (!selected) return;
+
+      // Process the image (resize and convert to base64 PNG)
+      const processedIcon = await invoke<string>("process_icon_file", {
+        path: selected
+      });
+
+      updateIcon(contextName, processedIcon);
+    } catch (e) {
+      console.error("Failed to process icon:", e);
+      error = `Failed to process icon: ${e}`;
     }
   }
 
@@ -341,16 +366,44 @@
                   />
 
                   <div class="flex-1 space-y-2">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-start gap-2">
+                      <!-- Icon Preview and Input -->
                       <div class="flex flex-col gap-1">
                         <label class="text-xs text-text-muted">Icon</label>
-                        <Input
-                          value={ctx.icon}
-                          oninput={(e) => updateIcon(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
-                          placeholder="🌐"
-                          class="w-16 text-center"
-                        />
+                        <div class="flex items-center gap-2">
+                          <!-- Icon Preview -->
+                          <div class="w-12 h-12 flex items-center justify-center border border-border-main rounded bg-bg-main overflow-hidden">
+                            {#if ctx.icon}
+                              {#if ctx.icon.startsWith("data:image") || ctx.icon.startsWith("http")}
+                                <img src={ctx.icon} alt="Icon" class="w-full h-full object-contain" />
+                              {:else}
+                                <span class="text-2xl">{ctx.icon}</span>
+                              {/if}
+                            {:else}
+                              <ImageIcon size={20} class="text-text-muted" />
+                            {/if}
+                          </div>
+                          
+                          <!-- File Browse Button -->
+                          <button
+                            onclick={() => handleIconFileSelect(ctx.context_name)}
+                            class="px-2 py-1 bg-bg-panel border border-border-main rounded hover:bg-bg-main transition-colors text-xs flex items-center gap-1"
+                            title="Browse for image file"
+                          >
+                            <Upload size={14} />
+                            Browse
+                          </button>
+                          
+                          <!-- Emoji Input (optional) -->
+                          <Input
+                            value={ctx.icon.startsWith("data:") || ctx.icon.startsWith("http") ? "" : ctx.icon}
+                            oninput={(e) => updateIcon(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
+                            placeholder="🌐 or paste URL"
+                            class="w-32 text-sm"
+                          />
+                        </div>
                       </div>
+                      
                       <div class="flex flex-col gap-1 flex-1">
                         <label class="text-xs text-text-muted">
                           Display Name

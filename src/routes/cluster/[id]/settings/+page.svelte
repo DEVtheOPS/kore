@@ -1,14 +1,15 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { confirm } from "@tauri-apps/plugin-dialog";
+  import { confirm, open } from "@tauri-apps/plugin-dialog";
   import { headerStore } from "$lib/stores/header.svelte";
   import { clustersStore, type Cluster } from "$lib/stores/clusters.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Card from "$lib/components/ui/Card.svelte";
-  import { Trash2, Save } from "lucide-svelte";
+  import { Trash2, Save, Upload, Image as ImageIcon } from "lucide-svelte";
 
   const clusterId = $derived($page.params.id);
   
@@ -111,6 +112,30 @@
       handleAddTag();
     }
   }
+
+  async function handleIconFileSelect() {
+    try {
+      const selected = await open({
+        multiple: false,
+        title: "Select Cluster Icon",
+        filters: [{
+          name: "Images",
+          extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico"]
+        }]
+      });
+
+      if (!selected) return;
+
+      // Process the image (resize and convert to base64 PNG)
+      const processedIcon = await invoke<string>("process_icon_file", {
+        path: selected
+      });
+
+      icon = processedIcon;
+    } catch (e) {
+      console.error("Failed to process icon:", e);
+    }
+  }
 </script>
 
 {#if loading}
@@ -146,24 +171,40 @@
         <!-- Icon -->
         <div>
           <label for="icon" class="block text-sm font-medium mb-2">
-            Icon (emoji or URL)
+            Icon
           </label>
-          <div class="flex gap-2">
-            {#if icon}
-              <div class="flex items-center justify-center w-10 h-10 border border-border-main rounded">
-                {#if icon.startsWith("http")}
-                  <img src={icon} alt="Icon" class="w-8 h-8 rounded" />
+          <div class="flex gap-2 items-start">
+            <!-- Icon Preview -->
+            <div class="flex items-center justify-center w-16 h-16 border border-border-main rounded bg-bg-panel overflow-hidden flex-shrink-0">
+              {#if icon}
+                {#if icon.startsWith("data:image") || icon.startsWith("http")}
+                  <img src={icon} alt="Icon" class="w-full h-full object-contain" />
                 {:else}
-                  <span class="text-2xl">{icon}</span>
+                  <span class="text-3xl">{icon}</span>
                 {/if}
-              </div>
-            {/if}
-            <Input
-              id="icon"
-              bind:value={icon}
-              placeholder="🌐 or https://example.com/icon.png"
-              class="flex-1"
-            />
+              {:else}
+                <ImageIcon size={24} class="text-text-muted" />
+              {/if}
+            </div>
+            
+            <div class="flex-1 space-y-2">
+              <!-- File Browse Button -->
+              <Button onclick={handleIconFileSelect} variant="outline">
+                <Upload size={16} />
+                Upload Image
+              </Button>
+              
+              <!-- Manual Input (for emoji or URL) -->
+              <Input
+                id="icon"
+                bind:value={icon}
+                placeholder="🌐 or paste image URL"
+                class="w-full"
+              />
+              <p class="text-xs text-text-muted">
+                Upload an image file (auto-resized to 512x512) or enter an emoji/URL
+              </p>
+            </div>
           </div>
         </div>
 

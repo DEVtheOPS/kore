@@ -80,6 +80,7 @@
 
   const allSelected = $derived(data.length > 0 && selectedIds.size === data.length);
   const isIndeterminate = $derived(selectedIds.size > 0 && selectedIds.size < data.length);
+  const showSelection = $derived(batchActions && batchActions.length > 0);
 
   // Initialize from storage
   if (storageKey && typeof localStorage !== "undefined") {
@@ -243,9 +244,11 @@
         class="bg-bg-panel text-text-muted font-semibold border-b border-border-subtle sticky top-0 z-10 shadow-sm"
       >
         <tr>
-          <th class="px-4 py-3 w-[40px]">
-            <Checkbox checked={allSelected} indeterminate={isIndeterminate} onchange={toggleSelectAll} />
-          </th>
+          {#if showSelection}
+            <th class="px-4 py-3 w-[40px]">
+              <Checkbox checked={allSelected} indeterminate={isIndeterminate} onchange={toggleSelectAll} />
+            </th>
+          {/if}
           {#each visibleColumns as col (col.id)}
             <th
               class="px-4 py-3 relative group select-none {col.sortable ? 'cursor-pointer hover:text-text-main' : ''}"
@@ -284,12 +287,14 @@
               : ''}"
             onclick={() => onRowClick?.(row)}
           >
-            <td class="px-4 py-3" onclick={(e) => e.stopPropagation()}>
-              <Checkbox
-                checked={selectedIds.has(row[keyField])}
-                onchange={(checked) => toggleRow(row[keyField], checked)}
-              />
-            </td>
+            {#if showSelection}
+              <td class="px-4 py-3" onclick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selectedIds.has(row[keyField])}
+                  onchange={(checked) => toggleRow(row[keyField], checked)}
+                />
+              </td>
+            {/if}
             {#each visibleColumns as col (col.id)}
               <td class="px-4 py-3 text-text-main">
                 {#if children}
@@ -308,7 +313,10 @@
         {/each}
         {#if sortedData.length === 0}
           <tr>
-            <td colspan={visibleColumns.length} class="px-4 py-8 text-center text-text-muted"> No data available </td>
+            <td
+              colspan={visibleColumns.length + (showSelection ? 1 : 0) + (actions ? 1 : 0)}
+              class="px-4 py-8 text-center text-text-muted"> No data available </td
+            >
           </tr>
         {/if}
       </tbody>

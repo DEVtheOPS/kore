@@ -80,24 +80,24 @@
   }
 </script>
 
-<aside class="flex flex-col h-full w-12 bg-bg-sidebar border-r border-border-main">
+<aside class="flex flex-col h-full w-16 bg-bg-sidebar border-r border-border-main">
   <!-- Overview / Home -->
   <a
     href="/"
-    class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors relative group"
+    class="flex items-center justify-center h-16 hover:bg-bg-main transition-colors relative group"
     class:bg-bg-main={isActive("/")}
     title="Overview"
   >
-    <Home size={20} class={isActive("/") && !$page.url.pathname.startsWith("/cluster") ? "text-primary" : "text-text-main"} />
+    <Home size={28} class={isActive("/") && !$page.url.pathname.startsWith("/cluster") ? "text-primary" : "text-text-main"} />
   </a>
 
   <!-- Add Cluster -->
   <button
     onclick={onAddCluster}
-    class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors"
+    class="flex items-center justify-center h-16 hover:bg-bg-main transition-colors"
     title="Add Cluster"
   >
-    <Plus size={20} />
+    <Plus size={28} />
   </button>
 
   <!-- Divider -->
@@ -122,19 +122,19 @@
 
           <a
             href="/cluster/{cluster.id}"
-            class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors relative"
+            class="flex items-center justify-center h-16 hover:bg-bg-main transition-colors relative"
             class:bg-bg-main={isActive(`/cluster/${cluster.id}`)}
             title={cluster.name}
           >
             {#if cluster.icon}
               {#if cluster.icon.startsWith("http") || cluster.icon.startsWith("data:")}
-                <img src={cluster.icon} alt={cluster.name} class="w-6 h-6 rounded object-contain" />
+                <img src={cluster.icon} alt={cluster.name} class="w-10 h-10 rounded object-contain" />
               {:else}
-                <span class="text-xl">{cluster.icon}</span>
+                <span class="text-3xl">{cluster.icon}</span>
               {/if}
             {:else}
               <div
-                class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold"
+                class="w-10 h-10 rounded flex items-center justify-center text-sm font-bold"
                 style="background-color: {getColorForString(cluster.name)}; color: white;"
               >
                 {cluster.name.charAt(0).toUpperCase()}
@@ -149,7 +149,7 @@
 
           <!-- Context menu trigger -->
           <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Menu items={getClusterMenuItems(cluster.id)} />
+            <Menu items={getClusterMenuItems(cluster.id)} align="left" />
           </div>
         </div>
       {/if}
@@ -162,11 +162,11 @@
   <!-- Settings -->
   <a
     href="/settings"
-    class="flex items-center justify-center h-12 hover:bg-bg-main transition-colors relative"
+    class="flex items-center justify-center h-16 hover:bg-bg-main transition-colors relative"
     class:bg-bg-main={isActive("/settings")}
     title="Settings"
   >
-    <SettingsIcon size={20} class={isActive("/settings") ? "text-primary" : "text-text-main"} />
+    <SettingsIcon size={28} class={isActive("/settings") ? "text-primary" : "text-text-main"} />
   </a>
 </aside>
 

@@ -11,21 +11,32 @@
 
   interface Props {
     items: MenuItem[];
+    align?: "left" | "right";
   }
 
-  let { items }: Props = $props();
+  let { items, align = "right" }: Props = $props();
   let isOpen = $state(false);
   let menuRef: HTMLElement | undefined = $state();
   let buttonRef: HTMLElement | undefined = $state();
-  let pos = $state({ top: 0, right: 0 });
+  let pos = $state<{ top: number; left?: number; right?: number }>({ top: 0, right: 0 });
 
   function updatePosition() {
     if (buttonRef) {
       const rect = buttonRef.getBoundingClientRect();
-      pos = {
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right
-      };
+      
+      if (align === "left") {
+        pos = {
+          top: rect.bottom + 4,
+          left: rect.left,
+          right: undefined
+        };
+      } else {
+        pos = {
+          top: rect.bottom + 4,
+          right: window.innerWidth - rect.right,
+          left: undefined
+        };
+      }
     }
   }
 
@@ -78,7 +89,7 @@
     <div 
       bind:this={menuRef}
       class="fixed w-40 bg-bg-popover border border-border-subtle rounded-md shadow-lg z-[9999] py-1"
-      style="top: {pos.top}px; right: {pos.right}px;"
+      style="top: {pos.top}px; {pos.left !== undefined ? `left: ${pos.left}px` : `right: ${pos.right}px`};"
     >
       {#each items as item}
         <button

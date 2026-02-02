@@ -5,6 +5,13 @@
   import { Edit, RefreshCw, Trash2 } from 'lucide-svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { activeClusterStore } from '$lib/stores/activeCluster.svelte';
+  import yaml from 'js-yaml';
+  import hljs from 'highlight.js/lib/core';
+  import yamlLang from 'highlight.js/lib/languages/yaml';
+  import 'highlight.js/styles/github-dark.css';
+
+  // Register YAML language for syntax highlighting
+  hljs.registerLanguage('yaml', yamlLang);
 
   interface DeploymentCondition {
     condition_type: string;
@@ -147,6 +154,23 @@
     if (status === 'True') return 'success';
     if (status === 'False') return 'error';
     return 'neutral';
+  }
+
+  function formatAnnotationValue(value: string): { formatted: string; isYaml: boolean } {
+    try {
+      // Try to parse as JSON
+      const parsed = JSON.parse(value);
+      // Convert to YAML
+      const yamlStr = yaml.dump(parsed, { indent: 2, lineWidth: -1 });
+      return { formatted: yamlStr, isYaml: true };
+    } catch {
+      // Not JSON, return as-is
+      return { formatted: value, isYaml: false };
+    }
+  }
+
+  function highlightYaml(yamlStr: string): string {
+    return hljs.highlight(yamlStr, { language: 'yaml' }).value;
   }
 
   // Mock chart data for now
@@ -302,11 +326,16 @@
           <h3 class="text-sm font-bold uppercase text-text-muted border-b border-border pb-2">
             Annotations ({Object.keys(details.annotations).length})
           </h3>
-          <div class="space-y-1 max-h-64 overflow-y-auto">
+          <div class="space-y-2 max-h-[500px] overflow-y-auto">
             {#each Object.entries(details.annotations) as [key, value]}
-              <div class="p-2 bg-bg-panel rounded-md text-xs font-mono break-all">
-                <div class="text-text-muted font-semibold mb-1">{key}</div>
-                <div class="text-text">{value}</div>
+              {@const { formatted, isYaml } = formatAnnotationValue(value)}
+              <div class="p-3 bg-bg-panel rounded-md">
+                <div class="text-text-muted font-semibold mb-2 text-xs">{key}</div>
+                {#if isYaml}
+                  <pre class="text-xs overflow-x-auto bg-bg-main rounded p-2"><code class="language-yaml">{@html highlightYaml(formatted)}</code></pre>
+                {:else}
+                  <div class="text-xs font-mono break-all text-text">{formatted}</div>
+                {/if}
               </div>
             {/each}
           </div>

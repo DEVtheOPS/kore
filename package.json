@@ -26,7 +26,10 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-updater": "~2.9.0",
     "@tauri-apps/plugin-websocket": "~2.4.2",
+    "@types/js-yaml": "^4.0.9",
     "chart.js": "^4.5.1",
+    "highlight.js": "^11.11.1",
+    "js-yaml": "^4.1.1",
     "lucide-svelte": "^0.563.0",
     "tailwindcss": "^4.1.18"
   },

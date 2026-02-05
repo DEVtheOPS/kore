@@ -102,6 +102,10 @@ pub fn run() {
             k8s::cluster_get_deployment_pods,
             k8s::cluster_get_deployment_replicasets,
             k8s::cluster_get_deployment_events,
+            // StatefulSet details, pods, and events
+            k8s::cluster_get_statefulset_details,
+            k8s::cluster_get_statefulset_pods,
+            k8s::cluster_get_statefulset_events,
             // Cluster management commands
             cluster_manager::db_list_clusters,
             cluster_manager::db_get_cluster,

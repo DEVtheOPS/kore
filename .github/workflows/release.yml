@@ -34,21 +34,25 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            name: macOS (Apple Silicon)
+            name: macOS-Silicon
             rust_target: aarch64-apple-darwin
             args: "--target aarch64-apple-darwin"
           - platform: macos-latest
-            name: macOS (Intel)
+            name: macOS-Intel
             rust_target: x86_64-apple-darwin
             args: "--target x86_64-apple-darwin"
+          - platform: macos-latest
+            name: macOS-Universal
+            rust_target: "aarch64-apple-darwin,x86_64-apple-darwin"
+            args: "--target universal-apple-darwin"
           - platform: ubuntu-22.04
-            name: Linux
-            rust_target: ""
-            args: ""
+            name: Linux-x86_64
+            rust_target: x86_64-unknown-linux-gnu
+            args: "--target x86_64-unknown-linux-gnu"
           - platform: windows-latest
-            name: Windows
-            rust_target: ""
-            args: ""
+            name: Windows-x86_64
+            rust_target: x86_64-pc-windows-msvc
+            args: "--target x86_64-pc-windows-msvc"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4

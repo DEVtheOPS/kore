@@ -1,3 +1,6 @@
+use crate::input_validation::{
+    validate_cluster_name, validate_context_name, validate_description, validate_tags,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -57,10 +60,15 @@ impl ClusterManager {
         description: Option<String>,
         tags: Vec<String>,
     ) -> Result<Cluster, String> {
+        let name = validate_cluster_name(name)?;
+        let context_name = validate_context_name(context_name)?;
+        let description = validate_description(description)?;
+        let tags = validate_tags(tags)?;
+
         let id = Uuid::new_v4().to_string();
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs() as i64;
 
         let tags_json =
@@ -68,7 +76,10 @@ impl ClusterManager {
 
         let config_path_str = config_path.to_string_lossy().to_string();
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
         conn.execute(
             "INSERT INTO clusters (id, name, context_name, config_path, icon, description, tags, created_at, last_accessed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
@@ -100,7 +111,10 @@ impl ClusterManager {
     }
 
     pub fn list_clusters(&self) -> Result<Vec<Cluster>, String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
         let mut stmt = conn
             .prepare("SELECT id, name, context_name, config_path, icon, description, tags, created_at, last_accessed FROM clusters ORDER BY last_accessed DESC")
             .map_err(|e| format!("Failed to prepare statement: {}", e))?;
@@ -127,7 +141,10 @@ impl ClusterManager {
     }
 
     pub fn get_cluster(&self, id: &str) -> Result<Option<Cluster>, String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
         let mut stmt = conn
             .prepare("SELECT id, name, context_name, config_path, icon, description, tags, created_at, last_accessed FROM clusters WHERE id = ?1")
             .map_err(|e| format!("Failed to prepare statement: {}", e))?;
@@ -160,13 +177,17 @@ impl ClusterManager {
         description: Option<Option<String>>,
         tags: Option<Vec<String>>,
     ) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
 
         // Build dynamic UPDATE query based on provided fields
         let mut updates = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(name_val) = name {
+            let name_val = validate_cluster_name(name_val)?;
             updates.push("name = ?");
             params.push(Box::new(name_val));
         }
@@ -177,11 +198,13 @@ impl ClusterManager {
         }
 
         if let Some(desc_val) = description {
+            let desc_val = validate_description(desc_val)?;
             updates.push("description = ?");
             params.push(Box::new(desc_val));
         }
 
         if let Some(tags_val) = tags {
+            let tags_val = validate_tags(tags_val)?;
             let tags_json = serde_json::to_string(&tags_val)
                 .map_err(|e| format!("Failed to serialize tags: {}", e))?;
             updates.push("tags = ?");
@@ -206,10 +229,13 @@ impl ClusterManager {
     pub fn update_last_accessed(&self, id: &str) -> Result<(), String> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs() as i64;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
         conn.execute(
             "UPDATE clusters SET last_accessed = ?1 WHERE id = ?2",
             params![now, id],
@@ -220,7 +246,10 @@ impl ClusterManager {
     }
 
     pub fn delete_cluster(&self, id: &str) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
         conn.execute("DELETE FROM clusters WHERE id = ?1", params![id])
             .map_err(|e| format!("Failed to delete cluster: {}", e))?;
 
@@ -235,7 +264,10 @@ pub struct ClusterManagerState(pub Arc<Mutex<ClusterManager>>);
 
 #[tauri::command]
 pub fn db_list_clusters(state: State<ClusterManagerState>) -> Result<Vec<Cluster>, String> {
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     manager.list_clusters()
 }
 
@@ -244,7 +276,10 @@ pub fn db_get_cluster(
     id: String,
     state: State<ClusterManagerState>,
 ) -> Result<Option<Cluster>, String> {
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     manager.get_cluster(&id)
 }
 
@@ -257,7 +292,10 @@ pub fn db_update_cluster(
     tags: Option<Vec<String>>,
     state: State<ClusterManagerState>,
 ) -> Result<(), String> {
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     manager.update_cluster(&id, name, icon, description, tags)
 }
 
@@ -266,21 +304,39 @@ pub fn db_update_last_accessed(
     id: String,
     state: State<ClusterManagerState>,
 ) -> Result<(), String> {
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     manager.update_last_accessed(&id)
 }
 
 #[tauri::command]
 pub fn db_delete_cluster(id: String, state: State<ClusterManagerState>) -> Result<(), String> {
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
 
     // Get cluster to find config file path
     if let Some(cluster) = manager.get_cluster(&id)? {
         // Delete the config file
         let config_path = PathBuf::from(&cluster.config_path);
-        if config_path.exists() {
-            std::fs::remove_file(&config_path)
-                .map_err(|e| format!("Failed to delete config file: {}", e))?;
+
+        // Validate the path before deletion to prevent path traversal
+        if let Ok(validated_path) = crate::config::validate_kubeconfig_path(&config_path) {
+            // Attempt to delete the file, ignore NotFound errors (file already deleted)
+            match std::fs::remove_file(&validated_path) {
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("Failed to delete config file: {}", e)),
+            }
+        } else {
+            // Log warning but don't fail the deletion if path validation fails
+            eprintln!(
+                "Warning: Could not validate path for deletion: {:?}",
+                config_path
+            );
         }
     }
 
@@ -292,7 +348,10 @@ pub fn db_delete_cluster(id: String, state: State<ClusterManagerState>) -> Resul
 pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Vec<String>, String> {
     use crate::import::{discover_contexts_in_folder, extract_context};
 
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     let kubeconfigs_dir = crate::config::get_kubeconfigs_dir();
 
     if !kubeconfigs_dir.exists() {
@@ -304,14 +363,38 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
         .map_err(|e| format!("Failed to discover legacy configs: {}", e))?;
 
     let mut migrated = Vec::new();
-    let conn = manager.conn.lock().unwrap();
+    let conn = manager
+        .conn
+        .lock()
+        .map_err(|e| format!("Database lock poisoned: {}", e))?;
 
     for ctx in discovered {
+        let validated_context_name = match validate_context_name(ctx.context_name.clone()) {
+            Ok(value) => value,
+            Err(e) => {
+                eprintln!(
+                    "Skipping invalid context name '{}': {}",
+                    ctx.context_name, e
+                );
+                continue;
+            }
+        };
+        let validated_name = match validate_cluster_name(ctx.context_name.clone()) {
+            Ok(value) => value,
+            Err(e) => {
+                eprintln!(
+                    "Skipping invalid cluster name '{}': {}",
+                    ctx.context_name, e
+                );
+                continue;
+            }
+        };
+
         // Check if this context already exists in the database
         let existing = conn
             .query_row(
                 "SELECT COUNT(*) FROM clusters WHERE context_name = ?1",
-                [&ctx.context_name],
+                [&validated_context_name],
                 |row| row.get::<_, i64>(0),
             )
             .unwrap_or(0);
@@ -337,7 +420,7 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
         // Add to database
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs() as i64;
 
         conn.execute(
@@ -345,8 +428,8 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             (
                 &id,
-                &ctx.context_name, // Use context name as display name initially
-                &ctx.context_name,
+                &validated_name, // Use context name as display name initially
+                &validated_context_name,
                 config_path.to_string_lossy().to_string(),
                 now,
                 now,
@@ -354,8 +437,69 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
         )
         .map_err(|e| format!("Failed to insert cluster: {}", e))?;
 
-        migrated.push(ctx.context_name);
+        migrated.push(validated_context_name);
     }
 
     Ok(migrated)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn add_cluster_rejects_invalid_name() {
+        let temp = TempDir::new().unwrap();
+        let manager = ClusterManager::new(temp.path().join("clusters.db")).unwrap();
+        let result = manager.add_cluster(
+            "bad\nname".to_string(),
+            "valid-context".to_string(),
+            PathBuf::from("/tmp/config.yaml"),
+            None,
+            None,
+            vec![],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn add_cluster_rejects_duplicate_tags() {
+        let temp = TempDir::new().unwrap();
+        let manager = ClusterManager::new(temp.path().join("clusters.db")).unwrap();
+        let result = manager.add_cluster(
+            "valid".to_string(),
+            "valid-context".to_string(),
+            PathBuf::from("/tmp/config.yaml"),
+            None,
+            None,
+            vec!["prod".to_string(), "prod".to_string()],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn update_cluster_rejects_invalid_description() {
+        let temp = TempDir::new().unwrap();
+        let manager = ClusterManager::new(temp.path().join("clusters.db")).unwrap();
+        let cluster = manager
+            .add_cluster(
+                "valid".to_string(),
+                "valid-context".to_string(),
+                PathBuf::from("/tmp/config.yaml"),
+                None,
+                None,
+                vec!["prod".to_string()],
+            )
+            .unwrap();
+
+        let result = manager.update_cluster(
+            &cluster.id,
+            None,
+            None,
+            Some(Some("bad\u{0007}".to_string())),
+            None,
+        );
+        assert!(result.is_err());
+    }
 }

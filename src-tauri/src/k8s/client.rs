@@ -83,7 +83,9 @@ pub async fn create_client_for_cluster(
     let kubeconfig = tauri::async_runtime::spawn_blocking(move || {
         // Get config path
         let config_path = {
-            let manager = manager.lock().unwrap();
+            let manager = manager
+                .lock()
+                .map_err(|e| format!("Failed to acquire lock: {}", e))?;
             let cluster = manager
                 .get_cluster(&cluster_id)?
                 .ok_or_else(|| format!("Cluster '{}' not found", cluster_id))?;

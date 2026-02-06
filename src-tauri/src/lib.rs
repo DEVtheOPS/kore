@@ -3,6 +3,7 @@ mod cluster_manager;
 mod config;
 mod image_utils;
 mod import;
+mod input_validation;
 mod k8s;
 
 #[tauri::command]

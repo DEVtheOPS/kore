@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::State;
 
+const MAX_DISCOVERY_DEPTH: usize = 8;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoveredContext {
     pub context_name: String,
@@ -44,8 +46,15 @@ pub fn discover_contexts_in_folder(path: &Path) -> Result<Vec<DiscoveredContext>
         return Err("Path is not a directory".to_string());
     }
 
-    fn visit_dirs(dir: &Path, contexts: &mut Vec<DiscoveredContext>) -> Result<(), String> {
+    fn visit_dirs(
+        dir: &Path,
+        depth: usize,
+        contexts: &mut Vec<DiscoveredContext>,
+    ) -> Result<(), String> {
         if !dir.is_dir() {
+            return Ok(());
+        }
+        if depth > MAX_DISCOVERY_DEPTH {
             return Ok(());
         }
 
@@ -55,6 +64,13 @@ pub fn discover_contexts_in_folder(path: &Path) -> Result<Vec<DiscoveredContext>
         for entry in entries {
             let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
             let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path)
+                .map_err(|e| format!("Failed to read metadata: {}", e))?;
+
+            // Skip symlinks to avoid traversal outside scope and cycle-based recursion attacks.
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
 
             if path.is_dir() {
                 // Skip hidden directories and common non-config directories
@@ -64,7 +80,7 @@ pub fn discover_contexts_in_folder(path: &Path) -> Result<Vec<DiscoveredContext>
                         continue;
                     }
                 }
-                visit_dirs(&path, contexts)?;
+                visit_dirs(&path, depth + 1, contexts)?;
             } else if path.is_file() {
                 // Try to parse as kubeconfig (skip if it fails)
                 if let Ok(file_contexts) = discover_contexts_in_file(&path) {
@@ -76,7 +92,7 @@ pub fn discover_contexts_in_folder(path: &Path) -> Result<Vec<DiscoveredContext>
         Ok(())
     }
 
-    visit_dirs(path, &mut all_contexts)?;
+    visit_dirs(path, 0, &mut all_contexts)?;
     Ok(all_contexts)
 }
 
@@ -173,7 +189,10 @@ pub async fn import_add_cluster(
     let config_path = extract_context(&source_path, &context_name, &cluster_id)?;
 
     // Add to database
-    let manager = state.0.lock().unwrap();
+    let manager = state
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     let cluster = manager.add_cluster(name, context_name, config_path, icon, description, tags)?;
 
     Ok(cluster.id)
@@ -314,5 +333,53 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let contexts = discover_contexts_in_folder(temp_dir.path()).unwrap();
         assert_eq!(contexts.len(), 0);
+    }
+
+    #[test]
+    fn test_discover_contexts_respects_max_depth() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut current = temp_dir.path().to_path_buf();
+
+        for i in 0..MAX_DISCOVERY_DEPTH {
+            current = current.join(format!("level-{}", i));
+            fs::create_dir(&current).unwrap();
+        }
+
+        create_test_kubeconfig(&current, "within-limit.yaml", &[("ctx-within", "c1", "u1")]);
+
+        let too_deep = current.join("too-deep");
+        fs::create_dir(&too_deep).unwrap();
+        create_test_kubeconfig(&too_deep, "too-deep.yaml", &[("ctx-too-deep", "c2", "u2")]);
+
+        let contexts = discover_contexts_in_folder(temp_dir.path()).unwrap();
+        assert!(contexts.iter().any(|c| c.context_name == "ctx-within"));
+        assert!(!contexts.iter().any(|c| c.context_name == "ctx-too-deep"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_discover_contexts_skips_symlink_dirs() {
+        use std::os::unix::fs::symlink;
+
+        let temp_dir = TempDir::new().unwrap();
+        let external_target_root = TempDir::new().unwrap();
+        let real_dir = temp_dir.path().join("real");
+        fs::create_dir(&real_dir).unwrap();
+        create_test_kubeconfig(&real_dir, "real.yaml", &[("ctx-real", "c1", "u1")]);
+
+        let linked_target = external_target_root.path().join("linked-target");
+        fs::create_dir(&linked_target).unwrap();
+        create_test_kubeconfig(
+            &linked_target,
+            "linked.yaml",
+            &[("ctx-via-symlink", "c2", "u2")],
+        );
+
+        let link_path = real_dir.join("link");
+        symlink(&linked_target, &link_path).unwrap();
+
+        let contexts = discover_contexts_in_folder(temp_dir.path()).unwrap();
+        assert!(contexts.iter().any(|c| c.context_name == "ctx-real"));
+        assert!(!contexts.iter().any(|c| c.context_name == "ctx-via-symlink"));
     }
 }

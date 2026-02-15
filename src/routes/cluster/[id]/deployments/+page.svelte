@@ -3,14 +3,17 @@
   import { confirm } from "@tauri-apps/plugin-dialog";
   import { headerStore } from "$lib/stores/header.svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
+  import Drawer from "$lib/components/ui/Drawer.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
-  import { Trash2, Eye } from "lucide-svelte";
+  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save } from "lucide-svelte";
   import DeploymentDetailDrawer from "$lib/components/DeploymentDetailDrawer.svelte";
 
   let data = $state<any[]>([]);
   let loading = $state(false);
   let search = $state("");
+  let error = $state<string | null>(null);
 
   // Detail Drawer state
   let showDrawer = $state(false);
@@ -18,6 +21,11 @@
     name: '',
     namespace: '',
   });
+  let showYamlDrawer = $state(false);
+  let yamlContent = $state("");
+  let yamlTarget = $state<{ name: string; namespace: string } | null>(null);
+  let loadingYaml = $state(false);
+  let applyingYaml = $state(false);
 
   const columns: Column[] = [
     { id: "name", label: "Name", sortable: true },
@@ -39,6 +47,7 @@
 
   async function loadData() {
     loading = true;
+    error = null;
     try {
       data = await invoke("cluster_list_deployments", {
         clusterId: activeClusterStore.clusterId,
@@ -87,6 +96,95 @@
     }
   }
 
+  async function handleEditYaml(row: any) {
+    if (!activeClusterStore.clusterId) return;
+    loadingYaml = true;
+    showYamlDrawer = true;
+    yamlTarget = { name: row.name, namespace: row.namespace };
+    try {
+      yamlContent = await invoke<string>("cluster_get_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        kind: "deployment",
+        name: row.name,
+        namespace: row.namespace,
+      });
+    } catch (e) {
+      console.error("Failed to load deployment yaml", e);
+      error = `Failed to load YAML for ${row.name}.`;
+      showYamlDrawer = false;
+    } finally {
+      loadingYaml = false;
+    }
+  }
+
+  async function handleApplyYaml() {
+    if (!activeClusterStore.clusterId || !yamlContent.trim()) return;
+    const confirmed = await confirm("Apply YAML changes to this deployment?", {
+      title: "Apply Deployment YAML",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+
+    applyingYaml = true;
+    try {
+      await invoke("cluster_apply_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        yaml: yamlContent,
+      });
+      showYamlDrawer = false;
+      await loadData();
+    } catch (e) {
+      console.error("Failed to apply deployment yaml", e);
+      error = `Failed to apply YAML: ${e}`;
+    } finally {
+      applyingYaml = false;
+    }
+  }
+
+  async function handleScale(row: any) {
+    const input = window.prompt(`Scale ${row.name} to how many replicas?`, "1");
+    if (input === null) return;
+    const replicas = Number.parseInt(input, 10);
+    if (!Number.isInteger(replicas) || replicas < 0) {
+      error = "Replica count must be a non-negative integer.";
+      return;
+    }
+
+    try {
+      await invoke("cluster_scale_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind: "deployment",
+        namespace: row.namespace,
+        name: row.name,
+        replicas,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to scale deployment", e);
+      error = `Failed to scale ${row.name}.`;
+    }
+  }
+
+  async function handleRestart(row: any) {
+    const confirmed = await confirm(`Restart rollout for ${row.name}?`, {
+      title: "Restart Deployment",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      await invoke("cluster_restart_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind: "deployment",
+        namespace: row.namespace,
+        name: row.name,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to restart deployment", e);
+      error = `Failed to restart ${row.name}.`;
+    }
+  }
+
   function getActions(row: any): MenuItem[] {
     return [
       {
@@ -99,6 +197,21 @@
           showDrawer = true;
         },
         icon: Eye,
+      },
+      {
+        label: "Edit YAML",
+        action: () => handleEditYaml(row),
+        icon: FilePenLine,
+      },
+      {
+        label: "Scale",
+        action: () => handleScale(row),
+        icon: Scaling,
+      },
+      {
+        label: "Restart",
+        action: () => handleRestart(row),
+        icon: RotateCw,
       },
       {
         label: "Delete",
@@ -129,6 +242,13 @@
 </script>
 
 <div class="h-full">
+  {#if error}
+    <div class="mb-4 p-3 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
+      <span>{error}</span>
+      <Button variant="outline" size="sm" onclick={loadData}>Retry</Button>
+    </div>
+  {/if}
+
   <DataTable
     {data}
     {columns}
@@ -136,6 +256,7 @@
     {loading}
     onRefresh={loadData}
     actions={getActions}
+    emptyMessage="No deployments found."
     onRowClick={handleRowClick}
     batchActions={[
       {
@@ -151,7 +272,7 @@
       {#if column.id === "images"}
         <div class="flex flex-col gap-1">
           {#if Array.isArray(value)}
-            {#each value.slice(0, 2) as img}
+            {#each value.slice(0, 2) as img, i (`${img}-${i}`)}
               <span class="text-xs font-mono bg-bg-panel px-1 rounded truncate max-w-[200px]" title={img}>
                 {img.split('/').pop()}
               </span>
@@ -174,4 +295,25 @@
     bind:deploymentName={selectedDeployment.name}
     bind:namespace={selectedDeployment.namespace}
   />
+
+  <Drawer bind:open={showYamlDrawer} title={yamlTarget ? `Edit YAML: ${yamlTarget.name}` : "Edit YAML"} width="w-[900px]">
+    <div class="p-4 space-y-3">
+      {#if loadingYaml}
+        <div class="text-text-muted">Loading YAML...</div>
+      {:else}
+        <textarea
+          class="w-full h-[65vh] rounded-md border border-border-main bg-bg-main text-text-main font-mono text-xs p-3 resize-y"
+          bind:value={yamlContent}
+          spellcheck="false"
+        ></textarea>
+        <div class="flex items-center justify-end gap-2">
+          <Button variant="outline" onclick={() => (showYamlDrawer = false)}>Cancel</Button>
+          <Button onclick={handleApplyYaml} disabled={applyingYaml || !yamlContent.trim()}>
+            <Save size={16} />
+            {applyingYaml ? "Applying..." : "Apply YAML"}
+          </Button>
+        </div>
+      {/if}
+    </div>
+  </Drawer>
 </div>

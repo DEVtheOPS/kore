@@ -6,7 +6,7 @@
   import Button from "$lib/components/ui/Button.svelte";
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
-  import { Trash2, Eye } from "lucide-svelte";
+  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save } from "lucide-svelte";
   import Drawer from "$lib/components/ui/Drawer.svelte";
 
   let { title, listCommand, deleteCommand } = $props<{
@@ -19,10 +19,16 @@
   let loading = $state(false);
   let search = $state("");
   let error = $state<string | null>(null);
-  
-  // Detail Drawer state
+
+  // Detail drawer state
   let showDrawer = $state(false);
   let selectedItem = $state<any>(null);
+  // YAML editor drawer state
+  let showYamlDrawer = $state(false);
+  let yamlTarget = $state<any>(null);
+  let yamlContent = $state("");
+  let loadingYaml = $state(false);
+  let applyingYaml = $state(false);
 
   const columns: Column[] = [
     { id: "name", label: "Name", sortable: true },
@@ -41,6 +47,47 @@
       loadData();
     }
   });
+
+  const resourceKindByTitle: Record<string, string> = {
+    Pods: "pod",
+    Deployments: "deployment",
+    StatefulSets: "statefulset",
+    DaemonSets: "daemonset",
+    ReplicaSets: "replicaset",
+    Jobs: "job",
+    CronJobs: "cronjob",
+    ConfigMaps: "configmap",
+    Secrets: "secret",
+    ResourceQuotas: "resourcequota",
+    LimitRanges: "limitrange",
+    HorizontalPodAutoscalers: "hpa",
+    PodDisruptionBudgets: "pdb",
+    Services: "service",
+    Endpoints: "endpoints",
+    Ingresses: "ingress",
+    NetworkPolicies: "networkpolicy",
+    PersistentVolumeClaims: "pvc",
+    PersistentVolumes: "pv",
+    StorageClasses: "storageclass",
+    ServiceAccounts: "serviceaccount",
+    Roles: "role",
+    RoleBindings: "rolebinding",
+    ClusterRoles: "clusterrole",
+    ClusterRoleBindings: "clusterrolebinding",
+    Namespaces: "namespace",
+    CRDs: "crd",
+  };
+
+  const scalableKinds = new Set(["deployment", "statefulset", "daemonset"]);
+  const restartableKinds = new Set(["deployment", "statefulset", "daemonset"]);
+
+  function getKind(): string | null {
+    return resourceKindByTitle[title] ?? null;
+  }
+
+  function isNamespaced(row: any): boolean {
+    return row?.namespace && row.namespace !== "-";
+  }
 
   async function loadData() {
     loading = true;
@@ -96,8 +143,111 @@
     }
   }
 
+  async function handleEditYaml(row: any) {
+    const kind = getKind();
+    if (!kind || !activeClusterStore.clusterId) return;
+
+    loadingYaml = true;
+    error = null;
+    yamlTarget = row;
+    showYamlDrawer = true;
+
+    try {
+      yamlContent = await invoke<string>("cluster_get_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        name: row.name,
+        namespace: isNamespaced(row) ? row.namespace : null,
+      });
+    } catch (e) {
+      console.error("Failed to load yaml", e);
+      error = `Failed to load YAML for ${row.name}.`;
+      showYamlDrawer = false;
+    } finally {
+      loadingYaml = false;
+    }
+  }
+
+  async function applyYamlChanges() {
+    if (!activeClusterStore.clusterId || !yamlContent) return;
+
+    const confirmed = await confirm("Apply YAML changes to the cluster?", {
+      title: "Apply Resource YAML",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+
+    applyingYaml = true;
+    error = null;
+    try {
+      await invoke("cluster_apply_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        yaml: yamlContent,
+      });
+      showYamlDrawer = false;
+      await loadData();
+    } catch (e) {
+      console.error("Failed to apply yaml", e);
+      error = `Failed to apply YAML changes: ${e}`;
+    } finally {
+      applyingYaml = false;
+    }
+  }
+
+  async function handleScale(row: any) {
+    const kind = getKind();
+    if (!kind || !scalableKinds.has(kind) || !activeClusterStore.clusterId || !isNamespaced(row)) return;
+
+    const input = window.prompt(`Scale ${row.name} to how many replicas?`, "1");
+    if (input === null) return;
+    const replicas = Number.parseInt(input, 10);
+    if (!Number.isInteger(replicas) || replicas < 0) {
+      error = "Replica count must be a non-negative integer.";
+      return;
+    }
+
+    try {
+      await invoke("cluster_scale_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        namespace: row.namespace,
+        name: row.name,
+        replicas,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to scale workload", e);
+      error = `Failed to scale ${row.name}.`;
+    }
+  }
+
+  async function handleRestart(row: any) {
+    const kind = getKind();
+    if (!kind || !restartableKinds.has(kind) || !activeClusterStore.clusterId || !isNamespaced(row)) return;
+
+    const confirmed = await confirm(`Restart rollout for ${row.name}?`, {
+      title: "Restart Workload",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+
+    try {
+      await invoke("cluster_restart_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        namespace: row.namespace,
+        name: row.name,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to restart workload", e);
+      error = `Failed to restart ${row.name}.`;
+    }
+  }
+
   function getActions(row: any): MenuItem[] {
-    return [
+    const kind = getKind();
+    const actions: MenuItem[] = [
       {
         label: "View Details",
         action: () => {
@@ -106,6 +256,30 @@
         },
         icon: Eye,
       },
+      {
+        label: "Edit YAML",
+        action: () => handleEditYaml(row),
+        icon: FilePenLine,
+      },
+    ];
+
+    if (kind && scalableKinds.has(kind) && isNamespaced(row)) {
+      actions.push({
+        label: "Scale",
+        action: () => handleScale(row),
+        icon: Scaling,
+      });
+    }
+
+    if (kind && restartableKinds.has(kind) && isNamespaced(row)) {
+      actions.push({
+        label: "Restart",
+        action: () => handleRestart(row),
+        icon: RotateCw,
+      });
+    }
+
+    actions.push(
       {
         label: "Delete",
         action: async () => {
@@ -130,8 +304,10 @@
         },
         icon: Trash2,
         danger: true,
-      },
-    ];
+      }
+    );
+
+    return actions;
   }
 </script>
 
@@ -234,6 +410,27 @@
                             </span>
                         {/each}
                     </div>
+                </div>
+            {/if}
+        </div>
+    </Drawer>
+
+    <Drawer bind:open={showYamlDrawer} title={yamlTarget ? `Edit YAML: ${yamlTarget.name}` : "Edit YAML"} width="w-[900px]">
+        <div class="p-4 space-y-3 h-full flex flex-col">
+            {#if loadingYaml}
+                <div class="text-text-muted">Loading YAML...</div>
+            {:else}
+                <textarea
+                    class="w-full h-[65vh] rounded-md border border-border-main bg-bg-main text-text-main font-mono text-xs p-3 resize-y"
+                    bind:value={yamlContent}
+                    spellcheck="false"
+                ></textarea>
+                <div class="flex items-center justify-end gap-2">
+                    <Button variant="outline" onclick={() => (showYamlDrawer = false)}>Cancel</Button>
+                    <Button onclick={applyYamlChanges} disabled={applyingYaml || !yamlContent.trim()}>
+                        <Save size={16} />
+                        {applyingYaml ? "Applying..." : "Apply YAML"}
+                    </Button>
                 </div>
             {/if}
         </div>

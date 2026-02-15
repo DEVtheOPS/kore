@@ -56,6 +56,10 @@ pub fn run() {
             k8s::cluster_get_events,
             k8s::cluster_list_events,
             k8s::cluster_list_nodes,
+            k8s::cluster_get_resource_yaml,
+            k8s::cluster_apply_resource_yaml,
+            k8s::cluster_scale_workload,
+            k8s::cluster_restart_workload,
             // Workload commands
             k8s::cluster_list_deployments,
             k8s::cluster_delete_deployment,

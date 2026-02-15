@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { headerStore } from '$lib/stores/header.svelte';
-
-  $effect(() => {
-    headerStore.setTitle("Cluster Role Bindings");
-  });
+  import WorkloadList from "$lib/components/WorkloadList.svelte";
 </script>
 
-<div class="p-4">
-  <h2 class="text-xl">Cluster Role Bindings Placeholder</h2>
-</div>
+<WorkloadList
+  title="ClusterRoleBindings"
+  listCommand="cluster_list_cluster_role_bindings"
+  deleteCommand="cluster_delete_cluster_role_binding"
+/>

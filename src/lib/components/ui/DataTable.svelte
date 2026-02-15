@@ -36,6 +36,7 @@
     showRefresh = true,
     actions,
     batchActions,
+    emptyMessage = "No data available",
   }: {
     data: any[];
     columns: Column[];
@@ -50,6 +51,7 @@
     showRefresh?: boolean;
     actions?: (row: any) => MenuItem[];
     batchActions?: BatchAction[];
+    emptyMessage?: string;
   } = $props();
 
   let sortCol = $state<string | null>(null);
@@ -321,7 +323,7 @@
           <tr>
             <td
               colspan={visibleColumns.length + (showSelection ? 1 : 0) + (actions ? 1 : 0)}
-              class="px-4 py-8 text-center text-text-muted"> No data available </td
+              class="px-4 py-8 text-center text-text-muted"> {emptyMessage} </td
             >
           </tr>
         {/if}
@@ -335,7 +337,7 @@
     >
       <span class="text-sm font-medium mr-2">{selectedIds.size} selected</span>
       <div class="h-4 w-px bg-border-subtle mx-1"></div>
-      {#each batchActions as action}
+      {#each batchActions as action (action.label)}
         <Button
           variant="ghost"
           size="sm"

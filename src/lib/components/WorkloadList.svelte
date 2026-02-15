@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
   import { headerStore } from "$lib/stores/header.svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
   import { Trash2, Eye } from "lucide-svelte";
@@ -18,6 +18,7 @@
   let data = $state<any[]>([]);
   let loading = $state(false);
   let search = $state("");
+  let error = $state<string | null>(null);
   
   // Detail Drawer state
   let showDrawer = $state(false);
@@ -43,6 +44,7 @@
 
   async function loadData() {
     loading = true;
+    error = null;
     try {
       data = await invoke(listCommand, {
         clusterId: activeClusterStore.clusterId,
@@ -50,6 +52,7 @@
       });
     } catch (e) {
       console.error(`Failed to load ${title}`, e);
+      error = `Failed to load ${title}.`;
     } finally {
       loading = false;
     }
@@ -70,6 +73,7 @@
 
     if (confirmed) {
       let successCount = 0;
+      let failedCount = 0;
       for (const item of itemsToDelete) {
         try {
           await invoke(deleteCommand, {
@@ -80,10 +84,14 @@
           successCount++;
         } catch (e) {
           console.error(`Failed to delete ${item.name}`, e);
+          failedCount++;
         }
       }
       if (successCount > 0) {
-        loadData();
+        await loadData();
+      }
+      if (failedCount > 0) {
+        error = `Failed to delete ${failedCount} ${title.toLowerCase()}.`;
       }
     }
   }
@@ -116,6 +124,7 @@
               loadData();
             } catch (e) {
               console.error("Failed to delete", e);
+              error = `Failed to delete ${row.name}.`;
             }
           }
         },
@@ -127,12 +136,25 @@
 </script>
 
 <div class="h-full">
+    {#if error}
+        <div class="mb-4 p-3 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" size="sm" onclick={loadData}>Retry</Button>
+                <Button variant="ghost" size="sm" onclick={() => (error = null)}>Dismiss</Button>
+            </div>
+        </div>
+    {/if}
+
     <DataTable
         {data}
         {columns}
         bind:search
         {loading}
         onRefresh={loadData}
+        emptyMessage={activeClusterStore.activeNamespace === "all"
+            ? `No ${title} found.`
+            : `No ${title} found in namespace "${activeClusterStore.activeNamespace}".`}
         actions={getActions}
         onRowClick={handleRowClick}
         batchActions={[
@@ -149,7 +171,7 @@
             {#if column.id === "images"}
                 <div class="flex flex-col gap-1">
                     {#if Array.isArray(value)}
-                        {#each value.slice(0, 2) as img}
+                        {#each value.slice(0, 2) as img (img)}
                             <span class="text-xs font-mono bg-bg-panel px-1 rounded truncate max-w-[200px]" title={img}>
                                 {img.split('/').pop()}
                             </span>
@@ -197,7 +219,7 @@
                 <div>
                     <span class="text-text-muted">Images:</span>
                     <ul class="list-disc list-inside font-mono text-xs mt-1">
-                        {#each selectedItem.images as img}
+                        {#each (selectedItem.images || []) as img (img)}
                             <li>{img}</li>
                         {/each}
                     </ul>
@@ -206,7 +228,7 @@
                 <div>
                     <span class="text-text-muted">Labels:</span>
                     <div class="flex flex-wrap gap-1 mt-1">
-                        {#each Object.entries(selectedItem.labels) as [k, v]}
+                        {#each Object.entries(selectedItem.labels || {}) as [k, v] (k)}
                             <span class="px-2 py-0.5 bg-bg-main border border-border-main rounded text-xs font-mono">
                                 {k}: {v}
                             </span>

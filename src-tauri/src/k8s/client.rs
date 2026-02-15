@@ -1,7 +1,8 @@
 use crate::cluster_manager::ClusterManagerState;
 use crate::config;
+use crate::k8s::common::{calculate_age, get_created_at};
 use k8s_openapi::api::core::v1::Namespace;
-use kube::api::{Api, ListParams};
+use kube::api::{Api, DeleteParams, ListParams};
 use kube::config::Kubeconfig;
 use kube::{Client, Config};
 use std::path::PathBuf;
@@ -207,4 +208,71 @@ pub async fn cluster_list_namespaces(
         .collect();
 
     Ok(namespaces)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NamespaceSummary {
+    pub id: String,
+    pub name: String,
+    pub namespace: String,
+    pub age: String,
+    pub labels: std::collections::BTreeMap<String, String>,
+    pub status: String,
+    pub images: Vec<String>,
+    pub created_at: i64,
+}
+
+#[tauri::command]
+pub async fn cluster_list_namespaces_detailed(
+    cluster_id: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<Vec<NamespaceSummary>, String> {
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let ns_api: Api<Namespace> = Api::all(client);
+
+    let list = ns_api
+        .list(&ListParams::default())
+        .await
+        .map_err(|e| format!("Failed to list namespaces: {}", e))?;
+
+    let mut namespaces: Vec<NamespaceSummary> = list
+        .items
+        .into_iter()
+        .map(|ns| {
+            let meta = ns.metadata;
+            let status = ns
+                .status
+                .and_then(|s| s.phase)
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            NamespaceSummary {
+                id: meta.uid.clone().unwrap_or_default(),
+                name: meta.name.clone().unwrap_or_default(),
+                namespace: "-".to_string(),
+                age: calculate_age(meta.creation_timestamp.as_ref()),
+                labels: meta.labels.unwrap_or_default(),
+                status,
+                images: vec![],
+                created_at: get_created_at(meta.creation_timestamp.as_ref()),
+            }
+        })
+        .collect();
+
+    namespaces.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(namespaces)
+}
+
+#[tauri::command]
+pub async fn cluster_delete_namespace(
+    cluster_id: String,
+    name: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<(), String> {
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let ns_api: Api<Namespace> = Api::all(client);
+    ns_api
+        .delete(&name, &DeleteParams::default())
+        .await
+        .map_err(|e| format!("Failed to delete namespace '{}': {}", name, e))?;
+    Ok(())
 }

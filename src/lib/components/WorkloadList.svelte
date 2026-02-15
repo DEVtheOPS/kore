@@ -171,7 +171,7 @@
             {#if column.id === "images"}
                 <div class="flex flex-col gap-1">
                     {#if Array.isArray(value)}
-                        {#each value.slice(0, 2) as img (img)}
+                        {#each value.slice(0, 2) as img, i (`${img}-${i}`)}
                             <span class="text-xs font-mono bg-bg-panel px-1 rounded truncate max-w-[200px]" title={img}>
                                 {img.split('/').pop()}
                             </span>
@@ -219,7 +219,7 @@
                 <div>
                     <span class="text-text-muted">Images:</span>
                     <ul class="list-disc list-inside font-mono text-xs mt-1">
-                        {#each (selectedItem.images || []) as img (img)}
+                        {#each (selectedItem.images || []) as img, i (`${img}-${i}`)}
                             <li>{img}</li>
                         {/each}
                     </ul>

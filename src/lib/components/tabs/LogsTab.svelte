@@ -54,9 +54,17 @@
     startStreaming();
   });
 
-  onDestroy(() => {
+  onDestroy(async () => {
+    // Stop listening to events
     if (unlisten) {
       unlisten();
+    }
+
+    // Stop the backend stream
+    try {
+      await invoke('stop_stream_logs', { streamId: data.streamId });
+    } catch (e) {
+      console.error('Failed to stop log stream:', e);
     }
   });
 

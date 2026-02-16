@@ -6,7 +6,8 @@
   import Button from "$lib/components/ui/Button.svelte";
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
-  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save } from "lucide-svelte";
+  import CodeEditor from "$lib/components/ui/CodeEditor.svelte";
+  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save, Edit } from "lucide-svelte";
   import Drawer from "$lib/components/ui/Drawer.svelte";
 
   let { title, listCommand, deleteCommand } = $props<{
@@ -366,6 +367,15 @@
     </DataTable>
 
     <Drawer bind:open={showDrawer} title={selectedItem?.name || "Details"}>
+        {#snippet headerActions()}
+            <button
+                class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
+                onclick={() => selectedItem && handleEditYaml(selectedItem)}
+                title="Edit"
+            >
+                <Edit size={18} />
+            </button>
+        {/snippet}
         <div class="p-4 space-y-4">
             <h3 class="font-bold">Details</h3>
             {#if selectedItem}
@@ -420,11 +430,9 @@
             {#if loadingYaml}
                 <div class="text-text-muted">Loading YAML...</div>
             {:else}
-                <textarea
-                    class="w-full h-[65vh] rounded-md border border-border-main bg-bg-main text-text-main font-mono text-xs p-3 resize-y"
-                    bind:value={yamlContent}
-                    spellcheck="false"
-                ></textarea>
+                <div class="flex-1 min-h-0">
+                    <CodeEditor bind:value={yamlContent} />
+                </div>
                 <div class="flex items-center justify-end gap-2">
                     <Button variant="outline" onclick={() => (showYamlDrawer = false)}>Cancel</Button>
                     <Button onclick={applyYamlChanges} disabled={applyingYaml || !yamlContent.trim()}>

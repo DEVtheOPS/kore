@@ -257,15 +257,4 @@
       >
     </SidebarGroup>
   </nav>
-
-  <!-- Settings Link -->
-  <div class="p-4 border-t border-border-subtle">
-    <a
-      href="/settings"
-      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
-    >
-      <SettingsIcon size={18} class="group-hover:text-primary transition-colors" />
-      <span>App Settings</span>
-    </a>
-  </div>
 </aside>

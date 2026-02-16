@@ -6,7 +6,18 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::api::{DeleteParams, ListParams, LogParams};
 use kube::runtime::watcher;
 use kube::Api;
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, State, Window};
+use tokio::sync::{broadcast, Mutex};
+
+// Global state for managing log stream cancellation
+type StreamRegistry = Arc<Mutex<HashMap<String, broadcast::Sender<()>>>>;
+
+fn stream_registry() -> &'static StreamRegistry {
+    static REGISTRY: OnceLock<StreamRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
 
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct ContainerPort {
@@ -585,27 +596,48 @@ pub async fn stream_container_logs(
         ..Default::default()
     };
 
+    // Create a cancellation channel for this stream
+    let (cancel_tx, mut cancel_rx) = broadcast::channel::<()>(1);
+
+    // Store the sender in the registry
+    {
+        let mut registry = stream_registry().lock().await;
+        registry.insert(stream_id.clone(), cancel_tx);
+    }
+
     // Spawn a task to stream logs
+    let stream_id_clone = stream_id.clone();
     tauri::async_runtime::spawn(async move {
         match pods.log_stream(&pod_name, &log_params).await {
             Ok(stream) => {
                 let mut lines = stream.lines();
                 loop {
-                    match lines.try_next().await {
-                        Ok(Some(line)) => {
-                            let event_name = format!("container_logs_{}", stream_id);
-                            if let Err(e) = window.emit(&event_name, line) {
-                                println!("Failed to emit log line: {}", e);
-                                break;
+                    tokio::select! {
+                        // Check for cancellation signal
+                        _ = cancel_rx.recv() => {
+                            println!("Stream cancelled: {}", stream_id_clone);
+                            break;
+                        }
+                        // Process log lines
+                        result = lines.try_next() => {
+                            match result {
+                                Ok(Some(line)) => {
+                                    let event_name = format!("container_logs_{}", stream_id_clone);
+                                    if let Err(e) = window.emit(&event_name, line) {
+                                        println!("Failed to emit log line: {}", e);
+                                        break;
+                                    }
+                                }
+                                Ok(None) => {
+                                    // Stream ended naturally
+                                    println!("Stream ended: {}", stream_id_clone);
+                                    break;
+                                }
+                                Err(e) => {
+                                    println!("Error reading log line: {}", e);
+                                    break;
+                                }
                             }
-                        }
-                        Ok(None) => {
-                            // Stream ended
-                            break;
-                        }
-                        Err(e) => {
-                            println!("Error reading log line: {}", e);
-                            break;
                         }
                     }
                 }
@@ -614,9 +646,30 @@ pub async fn stream_container_logs(
                 println!("Failed to open log stream: {}", e);
             }
         }
+
+        // Clean up: remove from registry when stream ends
+        let mut registry = stream_registry().lock().await;
+        registry.remove(&stream_id_clone);
+        println!("Cleaned up stream registry: {}", stream_id_clone);
     });
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn stop_stream_logs(stream_id: String) -> Result<(), String> {
+    let mut registry = stream_registry().lock().await;
+
+    if let Some(cancel_tx) = registry.remove(&stream_id) {
+        // Send cancellation signal (ignore errors if no receivers)
+        let _ = cancel_tx.send(());
+        println!("Sent stop signal for stream: {}", stream_id);
+        Ok(())
+    } else {
+        // Stream not found - it may have already ended
+        println!("Stream not found in registry: {}", stream_id);
+        Ok(())
+    }
 }
 
 #[derive(Clone, serde::Serialize)]

@@ -42,6 +42,7 @@ pub fn run() {
             k8s::delete_pod,
             k8s::get_pod_events,
             k8s::stream_container_logs,
+            k8s::stop_stream_logs,
             k8s::start_pod_watch,
             // NEW: Cluster-based k8s commands
             k8s::cluster_list_namespaces,

@@ -1,0 +1,46 @@
+# Configuration for cargo-deny
+# https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+# Allow specific advisories that come from Tauri dependencies
+# These will be resolved when Tauri updates their dependencies
+ignore = [
+    # bytes 1.11.0 - Integer overflow in BytesMut::reserve (from Tauri/tokio deps)
+    # Non-critical: Requires specific conditions to trigger
+    # Waiting for Tauri to update to bytes 1.11.1+
+    "RUSTSEC-2026-0007",
+
+    # time 0.3.46 - DoS via stack exhaustion (from Tauri plugins)
+    # Non-critical: Requires malformed input
+    # Waiting for Tauri to update to time 0.3.47+
+    "RUSTSEC-2026-0009",
+
+    # glib 0.18.5 - Unsoundness in Iterator impl (from webkit2gtk/Tauri)
+    # Waiting for Tauri to update to newer glib version
+    "RUSTSEC-2024-0429",
+
+    # unic-ucd-version - Unmaintained (from Tauri's urlpattern dependency)
+    # Waiting for Tauri to migrate away from unic crates
+    "RUSTSEC-2025-0098",
+]
+
+[licenses]
+# We're not enforcing license restrictions yet
+unlicensed = "allow"
+allow = []
+deny = []
+copyleft = "allow"
+allow-osi-fsf-free = "neither"
+default = "allow"
+
+[bans]
+# We're not banning any crates
+multiple-versions = "allow"
+wildcards = "allow"
+
+[sources]
+# We're allowing all sources
+unknown-registry = "allow"
+unknown-git = "allow"
+allow-registry = []
+allow-git = []

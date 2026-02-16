@@ -1,0 +1,27 @@
+# Configuration for cargo-audit
+# https://docs.rs/cargo-audit/latest/cargo_audit/
+
+[advisories]
+# Ignore specific advisories that come from Tauri dependencies
+# These will be resolved when Tauri updates their dependencies
+ignore = [
+    # bytes 1.11.0 - Integer overflow in BytesMut::reserve (from Tauri/tokio deps)
+    # Non-critical: Requires specific conditions to trigger
+    # Waiting for Tauri to update to bytes 1.11.1+
+    "RUSTSEC-2026-0007",
+
+    # time 0.3.46 - DoS via stack exhaustion (from Tauri plugins)
+    # Non-critical: Requires malformed input
+    # Waiting for Tauri to update to time 0.3.47+
+    "RUSTSEC-2026-0009",
+
+    # glib 0.18.5 - Unsoundness in Iterator impl (from webkit2gtk/Tauri)
+    # Non-critical: Affects glib::VariantStrIter which we don't use directly
+    # Waiting for Tauri to update to newer glib version
+    "RUSTSEC-2024-0429",
+
+    # unic-ucd-version - Unmaintained (from Tauri's urlpattern dependency)
+    # Non-critical: Still functional, just no longer maintained
+    # Waiting for Tauri to migrate away from unic crates
+    "RUSTSEC-2025-0098",
+]

@@ -18,8 +18,13 @@ pub fn run() {
 
     // Initialize cluster manager
     let db_path = config::get_app_config_dir().join("clusters.db");
-    let cluster_manager = cluster_manager::ClusterManager::new(db_path)
-        .expect("Failed to initialize cluster manager");
+    let cluster_manager = match cluster_manager::ClusterManager::new(db_path) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Failed to initialize cluster manager: {}", e);
+            std::process::exit(1);
+        }
+    };
     let cluster_manager_state = cluster_manager::ClusterManagerState(std::sync::Arc::new(
         std::sync::Mutex::new(cluster_manager),
     ));
@@ -142,5 +147,8 @@ pub fn run() {
             config::import_kubeconfig
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("Error running tauri application: {}", e);
+            std::process::exit(1);
+        });
 }

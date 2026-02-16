@@ -439,6 +439,7 @@ pub async fn cluster_list_nodes(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

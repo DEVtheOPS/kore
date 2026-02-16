@@ -444,6 +444,7 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use tempfile::TempDir;

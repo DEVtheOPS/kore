@@ -218,7 +218,7 @@ pub async fn cluster_list_helm_charts(
 
             charts.push(HelmChartSummary {
                 id: format!("{}:{}", chart, version),
-                name: chart.split('/').last().unwrap_or_default().to_string(),
+                name: chart.split('/').next_back().unwrap_or_default().to_string(),
                 namespace: "-".to_string(),
                 age: "-".to_string(),
                 labels: std::collections::BTreeMap::new(),

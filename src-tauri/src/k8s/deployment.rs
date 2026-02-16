@@ -458,6 +458,7 @@ pub async fn cluster_get_deployment_events(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_arguments)]
 mod tests {
     use super::*;
 

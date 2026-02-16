@@ -4,23 +4,21 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[allow(dead_code)]
 pub struct AppConfig {
     #[allow(dead_code)]
     pub kubeconfig_paths: Vec<PathBuf>,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            kubeconfig_paths: vec![],
-        }
-    }
-}
-
 pub fn get_app_config_dir() -> PathBuf {
-    let mut path = dirs::home_dir().expect("Could not find home directory");
+    let mut path = match dirs::home_dir() {
+        Some(dir) => dir,
+        None => {
+            eprintln!("Could not find home directory, using /tmp");
+            PathBuf::from("/tmp")
+        }
+    };
     path.push(".rustylens");
     path
 }
@@ -166,6 +164,7 @@ pub fn validate_import_source(path: &Path) -> Result<PathBuf, String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -204,6 +203,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    #[allow(clippy::panic)]
     fn validate_kubeconfig_path_rejects_symlink_escape() {
         use std::os::unix::fs::symlink;
         use std::time::{SystemTime, UNIX_EPOCH};

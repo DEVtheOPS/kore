@@ -839,17 +839,30 @@ pub async fn cluster_get_pod_events(
     Ok(event_infos)
 }
 
-#[tauri::command]
-pub async fn cluster_stream_container_logs(
+/// Parameters for streaming container logs
+#[derive(serde::Deserialize)]
+pub struct LogStreamParams {
     cluster_id: String,
     namespace: String,
     pod_name: String,
     container_name: String,
     stream_id: String,
+}
+
+#[tauri::command]
+pub async fn cluster_stream_container_logs(
+    params: LogStreamParams,
     window: Window,
     state: State<'_, ClusterManagerState>,
     watcher_state: State<'_, WatcherState>,
 ) -> Result<(), String> {
+    let LogStreamParams {
+        cluster_id,
+        namespace,
+        pod_name,
+        container_name,
+        stream_id,
+    } = params;
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 

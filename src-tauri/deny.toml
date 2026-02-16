@@ -1,0 +1,58 @@
+# Configuration for cargo-deny
+# https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+# Don't error on unused ignored advisories (platform-specific deps like webkit2gtk on macOS)
+unused-ignored-advisory = "warn"
+
+# Allow specific advisories that come from Tauri dependencies
+# These will be resolved when Tauri updates their dependencies
+ignore = [
+    # bytes 1.11.0 - Integer overflow in BytesMut::reserve (from Tauri/tokio deps)
+    # Non-critical: Requires specific conditions to trigger
+    # Waiting for Tauri to update to bytes 1.11.1+
+    "RUSTSEC-2026-0007",
+
+    # time 0.3.46 - DoS via stack exhaustion (from Tauri plugins)
+    # Non-critical: Requires malformed input
+    # Waiting for Tauri to update to time 0.3.47+
+    "RUSTSEC-2026-0009",
+
+    # glib 0.18.5 - Unsoundness in Iterator impl (from webkit2gtk/Tauri)
+    # Waiting for Tauri to update to newer glib version
+    "RUSTSEC-2024-0429",
+
+    # unic-ucd-version - Unmaintained (from Tauri's urlpattern dependency)
+    # Waiting for Tauri to migrate away from unic crates
+    "RUSTSEC-2025-0098",
+
+    # unic-ucd-ident - Unmaintained (from Tauri's urlpattern dependency)
+    # Waiting for Tauri to migrate away from unic crates
+    "RUSTSEC-2025-0100",
+
+    # All unmaintained GTK3/gtk-rs bindings (from Tauri's webkit2gtk dependency on Linux)
+    # Tauri is migrating to GTK4
+    "RUSTSEC-2024-0413",  # atk
+    "RUSTSEC-2024-0416",  # atk-sys
+    "RUSTSEC-2024-0412",  # gdk
+    "RUSTSEC-2024-0418",  # gdk-sys
+    "RUSTSEC-2024-0419",  # gdkwayland-sys
+    "RUSTSEC-2024-0420",  # gdkx11
+    "RUSTSEC-2024-0417",  # gdkx11-sys
+    "RUSTSEC-2024-0411",  # gtk
+    "RUSTSEC-2024-0414",  # gtk-sys
+    "RUSTSEC-2024-0415",  # gtk3-macros
+
+    # Other unmaintained dependencies from Tauri
+    "RUSTSEC-2025-0057",  # fxhash
+    "RUSTSEC-2024-0370",  # proc-macro-error
+    "RUSTSEC-2024-0436",  # paste
+
+    # More unmaintained unic crates
+    "RUSTSEC-2025-0081",  # unic-char-property
+    "RUSTSEC-2025-0075",  # unic-char-range
+    "RUSTSEC-2025-0080",  # unic-common
+]
+
+# We're not enforcing licenses, bans, or sources restrictions
+# Only checking advisories

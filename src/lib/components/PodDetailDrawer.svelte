@@ -1,7 +1,7 @@
 <script lang="ts">
   import Drawer from '$lib/components/ui/Drawer.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
-  import { Edit, FileText } from 'lucide-svelte';
+  import { FileText } from 'lucide-svelte';
   import { bottomDrawerStore } from '$lib/stores/bottomDrawer.svelte';
   import { clusterStore } from '$lib/stores/cluster.svelte';
 
@@ -118,12 +118,6 @@
     return 'info';
   }
 
-  function handleEdit() {
-    if (!pod) return;
-    // TODO: Implement edit functionality
-    console.log('Edit pod:', pod.name);
-  }
-
   function handleLogs(containerName: string) {
     if (!pod) return;
     
@@ -149,13 +143,6 @@
 
 <Drawer bind:open title={pod?.name || 'Pod Details'}>
   {#snippet headerActions()}
-    <button
-      class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
-      onclick={handleEdit}
-      title="Edit"
-    >
-      <Edit size={18} />
-    </button>
     {#if pod && pod.container_details && pod.container_details.length === 1}
       <button
         class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"

@@ -1,11 +1,5 @@
 <script lang="ts">
-  import { headerStore } from '$lib/stores/header.svelte';
-
-  $effect(() => {
-    headerStore.setTitle("CRD");
-  });
+  import WorkloadList from "$lib/components/WorkloadList.svelte";
 </script>
 
-<div class="p-4">
-  <h2 class="text-xl">CRD Placeholder</h2>
-</div>
+<WorkloadList title="CRDs" listCommand="cluster_list_crds" deleteCommand="cluster_delete_crd" />

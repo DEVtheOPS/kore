@@ -1,6 +1,32 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Chart, type ChartConfiguration, type ChartType } from 'chart.js';
+  import {
+    Chart,
+    type ChartConfiguration,
+    type ChartType,
+    LineController,
+    LineElement,
+    PointElement,
+    LinearScale,
+    CategoryScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+  } from 'chart.js';
+
+  // Register Chart.js components
+  Chart.register(
+    LineController,
+    LineElement,
+    PointElement,
+    LinearScale,
+    CategoryScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+  );
 
   let { type, data, options } = $props<{
     type: ChartType;

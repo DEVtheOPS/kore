@@ -145,17 +145,22 @@
   {#if bottomDrawerStore.open}
     <div class="bg-bg-main flex flex-col" style="height: {drawerHeight}px;">
       <!-- Tab Content -->
-      <div class="flex-1 overflow-hidden">
-        {#if bottomDrawerStore.activeTab}
-          {#if bottomDrawerStore.activeTab.type === "logs"}
-            <LogsTab data={bottomDrawerStore.activeTab.data} />
-          {:else if bottomDrawerStore.activeTab.type === "edit"}
-            <div class="p-4">Edit functionality coming soon...</div>
-          {:else}
-            <div class="p-4">Unknown tab type</div>
-          {/if}
-        {:else}
+      <div class="flex-1 overflow-hidden relative">
+        {#if bottomDrawerStore.tabs.length === 0}
           <div class="flex items-center justify-center h-full text-text-muted">Open a pod's logs to get started</div>
+        {:else}
+          <!-- Render all tabs but only show the active one -->
+          {#each bottomDrawerStore.tabs as tab}
+            <div class="absolute inset-0" style="display: {bottomDrawerStore.activeTabId === tab.id ? 'block' : 'none'};">
+              {#if tab.type === "logs"}
+                <LogsTab data={tab.data} />
+              {:else if tab.type === "edit"}
+                <div class="p-4">Edit functionality coming soon...</div>
+              {:else}
+                <div class="p-4">Unknown tab type</div>
+              {/if}
+            </div>
+          {/each}
         {/if}
       </div>
     </div>

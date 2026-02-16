@@ -10,8 +10,9 @@ use k8s_openapi::api::core::v1::{
 };
 use k8s_openapi::api::networking::v1::{Ingress, NetworkPolicy};
 use k8s_openapi::api::policy::v1::PodDisruptionBudget;
-use k8s_openapi::api::rbac::v1::{ClusterRole, Role};
+use k8s_openapi::api::rbac::v1::{ClusterRole, ClusterRoleBinding, Role, RoleBinding};
 use k8s_openapi::api::storage::v1::StorageClass;
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::api::Api;
 use tauri::State;
 
@@ -595,6 +596,91 @@ fn map_cluster_role_to_summary(r: ClusterRole) -> WorkloadSummary {
     }
 }
 
+fn map_role_binding_to_summary(r: RoleBinding) -> WorkloadSummary {
+    let meta = r.metadata;
+    let role = format!("{}:{}", r.role_ref.kind, r.role_ref.name);
+    let subjects = r
+        .subjects
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| {
+            if let Some(ns) = s.namespace {
+                format!("{}:{}/{}", s.kind, ns, s.name)
+            } else {
+                format!("{}:{}", s.kind, s.name)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: meta.namespace.clone().unwrap_or_default(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: role,
+        images: subjects,
+    }
+}
+
+fn map_cluster_role_binding_to_summary(r: ClusterRoleBinding) -> WorkloadSummary {
+    let meta = r.metadata;
+    let role = format!("{}:{}", r.role_ref.kind, r.role_ref.name);
+    let subjects = r
+        .subjects
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| {
+            if let Some(ns) = s.namespace {
+                format!("{}:{}/{}", s.kind, ns, s.name)
+            } else {
+                format!("{}:{}", s.kind, s.name)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: "-".to_string(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: role,
+        images: subjects,
+    }
+}
+
+fn map_crd_to_summary(c: CustomResourceDefinition) -> WorkloadSummary {
+    let meta = c.metadata;
+    let spec = c.spec;
+    let scope = spec.scope;
+    let versions = spec
+        .versions
+        .iter()
+        .map(|v| {
+            if v.storage {
+                format!("{}*", v.name)
+            } else {
+                v.name.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    WorkloadSummary {
+        id: meta.uid.clone().unwrap_or_default(),
+        name: meta.name.clone().unwrap_or_default(),
+        namespace: "-".to_string(),
+        age: calculate_age(meta.creation_timestamp.as_ref()),
+        created_at: get_created_at(meta.creation_timestamp.as_ref()),
+        labels: meta.labels.unwrap_or_default(),
+        status: format!("{} ({})", spec.names.kind, scope),
+        images: vec![versions, spec.group],
+    }
+}
+
 impl_workload_commands!(
     Deployment,
     cluster_list_deployments,
@@ -710,6 +796,12 @@ impl_workload_commands!(
     cluster_delete_role,
     map_role_to_summary
 );
+impl_workload_commands!(
+    RoleBinding,
+    cluster_list_role_bindings,
+    cluster_delete_role_binding,
+    map_role_binding_to_summary
+);
 
 // Cluster Scoped
 impl_cluster_resource_commands!(
@@ -729,4 +821,16 @@ impl_cluster_resource_commands!(
     cluster_list_cluster_roles,
     cluster_delete_cluster_role,
     map_cluster_role_to_summary
+);
+impl_cluster_resource_commands!(
+    ClusterRoleBinding,
+    cluster_list_cluster_role_bindings,
+    cluster_delete_cluster_role_binding,
+    map_cluster_role_binding_to_summary
+);
+impl_cluster_resource_commands!(
+    CustomResourceDefinition,
+    cluster_list_crds,
+    cluster_delete_crd,
+    map_crd_to_summary
 );

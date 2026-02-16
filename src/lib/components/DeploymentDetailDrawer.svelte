@@ -2,8 +2,12 @@
   import Drawer from '$lib/components/ui/Drawer.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Chart from '$lib/components/ui/Chart.svelte';
-  import { Edit, RefreshCw, Trash2 } from 'lucide-svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import CodeEditor from '$lib/components/ui/CodeEditor.svelte';
+  import YamlDisplay from '$lib/components/ui/YamlDisplay.svelte';
+  import { Edit, RefreshCw, Trash2, Save } from 'lucide-svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { confirm } from '@tauri-apps/plugin-dialog';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { activeClusterStore } from '$lib/stores/activeCluster.svelte';
@@ -85,6 +89,12 @@
   let loading = $state(false);
   let activeTab = $state<'cpu' | 'memory' | 'network' | 'filesystem'>('cpu');
 
+  // YAML editor drawer state
+  let showYamlDrawer = $state(false);
+  let yamlContent = $state('');
+  let loadingYaml = $state(false);
+  let applyingYaml = $state(false);
+
   // Fetch deployment details when drawer opens
   $effect(() => {
     if (open && deploymentName && namespace) {
@@ -136,9 +146,49 @@
     loadDeploymentDetails();
   }
 
-  function handleEdit() {
-    // TODO: Implement edit functionality
-    console.log('Edit deployment:', deploymentName);
+  async function handleEdit() {
+    if (!activeClusterStore.clusterId) return;
+
+    loadingYaml = true;
+    showYamlDrawer = true;
+
+    try {
+      yamlContent = await invoke<string>('cluster_get_resource_yaml', {
+        clusterId: activeClusterStore.clusterId,
+        kind: 'deployment',
+        name: deploymentName,
+        namespace: namespace,
+      });
+    } catch (e) {
+      console.error('Failed to load yaml', e);
+      showYamlDrawer = false;
+    } finally {
+      loadingYaml = false;
+    }
+  }
+
+  async function applyYamlChanges() {
+    if (!activeClusterStore.clusterId || !yamlContent) return;
+
+    const confirmed = await confirm('Apply YAML changes to the cluster?', {
+      title: 'Apply Resource YAML',
+      kind: 'warning',
+    });
+    if (!confirmed) return;
+
+    applyingYaml = true;
+    try {
+      await invoke('cluster_apply_resource_yaml', {
+        clusterId: activeClusterStore.clusterId,
+        yaml: yamlContent,
+      });
+      showYamlDrawer = false;
+      await loadDeploymentDetails(); // Reload the deployment details after applying
+    } catch (e) {
+      console.error('Failed to apply yaml', e);
+    } finally {
+      applyingYaml = false;
+    }
   }
 
   function handleDelete() {
@@ -331,7 +381,7 @@
               <div class="p-3 bg-bg-panel rounded-md">
                 <div class="text-text-muted font-semibold mb-2 text-xs">{key}</div>
                 {#if isYaml}
-                  <pre class="text-xs overflow-x-auto bg-bg-main rounded p-2"><code class="language-yaml">{formatted}</code></pre>
+                  <YamlDisplay code={formatted} />
                 {:else}
                   <div class="text-xs font-mono break-all text-text">{formatted}</div>
                 {/if}
@@ -485,4 +535,24 @@
   {:else}
     <div class="text-sm text-text-muted text-center py-8">No deployment details available</div>
   {/if}
+</Drawer>
+
+<!-- YAML Editor Drawer -->
+<Drawer bind:open={showYamlDrawer} title="Edit YAML: {deploymentName}" width="w-[900px]">
+  <div class="p-4 space-y-3 h-full flex flex-col">
+    {#if loadingYaml}
+      <div class="text-text-muted">Loading YAML...</div>
+    {:else}
+      <div class="flex-1 min-h-0">
+        <CodeEditor bind:value={yamlContent} />
+      </div>
+      <div class="flex items-center justify-end gap-2">
+        <Button variant="outline" onclick={() => (showYamlDrawer = false)}>Cancel</Button>
+        <Button onclick={applyYamlChanges} disabled={applyingYaml || !yamlContent.trim()}>
+          <Save size={16} />
+          {applyingYaml ? 'Applying...' : 'Apply YAML'}
+        </Button>
+      </div>
+    {/if}
+  </div>
 </Drawer>

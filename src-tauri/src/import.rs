@@ -1,9 +1,9 @@
 use crate::cluster_manager::ClusterManagerState;
 use kube::config::Kubeconfig;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use tauri::State;
-use std::io::Write;
 
 const MAX_DISCOVERY_DEPTH: usize = 8;
 
@@ -208,6 +208,7 @@ pub async fn import_add_cluster(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use std::fs;

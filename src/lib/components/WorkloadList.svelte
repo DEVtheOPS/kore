@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
   import { headerStore } from "$lib/stores/header.svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
-  import { Trash2, Eye } from "lucide-svelte";
+  import CodeEditor from "$lib/components/ui/CodeEditor.svelte";
+  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save, Edit } from "lucide-svelte";
   import Drawer from "$lib/components/ui/Drawer.svelte";
 
   let { title, listCommand, deleteCommand } = $props<{
@@ -18,10 +19,17 @@
   let data = $state<any[]>([]);
   let loading = $state(false);
   let search = $state("");
-  
-  // Detail Drawer state
+  let error = $state<string | null>(null);
+
+  // Detail drawer state
   let showDrawer = $state(false);
   let selectedItem = $state<any>(null);
+  // YAML editor drawer state
+  let showYamlDrawer = $state(false);
+  let yamlTarget = $state<any>(null);
+  let yamlContent = $state("");
+  let loadingYaml = $state(false);
+  let applyingYaml = $state(false);
 
   const columns: Column[] = [
     { id: "name", label: "Name", sortable: true },
@@ -41,8 +49,50 @@
     }
   });
 
+  const resourceKindByTitle: Record<string, string> = {
+    Pods: "pod",
+    Deployments: "deployment",
+    StatefulSets: "statefulset",
+    DaemonSets: "daemonset",
+    ReplicaSets: "replicaset",
+    Jobs: "job",
+    CronJobs: "cronjob",
+    ConfigMaps: "configmap",
+    Secrets: "secret",
+    ResourceQuotas: "resourcequota",
+    LimitRanges: "limitrange",
+    HorizontalPodAutoscalers: "hpa",
+    PodDisruptionBudgets: "pdb",
+    Services: "service",
+    Endpoints: "endpoints",
+    Ingresses: "ingress",
+    NetworkPolicies: "networkpolicy",
+    PersistentVolumeClaims: "pvc",
+    PersistentVolumes: "pv",
+    StorageClasses: "storageclass",
+    ServiceAccounts: "serviceaccount",
+    Roles: "role",
+    RoleBindings: "rolebinding",
+    ClusterRoles: "clusterrole",
+    ClusterRoleBindings: "clusterrolebinding",
+    Namespaces: "namespace",
+    CRDs: "crd",
+  };
+
+  const scalableKinds = new Set(["deployment", "statefulset", "daemonset"]);
+  const restartableKinds = new Set(["deployment", "statefulset", "daemonset"]);
+
+  function getKind(): string | null {
+    return resourceKindByTitle[title] ?? null;
+  }
+
+  function isNamespaced(row: any): boolean {
+    return row?.namespace && row.namespace !== "-";
+  }
+
   async function loadData() {
     loading = true;
+    error = null;
     try {
       data = await invoke(listCommand, {
         clusterId: activeClusterStore.clusterId,
@@ -50,6 +100,7 @@
       });
     } catch (e) {
       console.error(`Failed to load ${title}`, e);
+      error = `Failed to load ${title}.`;
     } finally {
       loading = false;
     }
@@ -70,6 +121,7 @@
 
     if (confirmed) {
       let successCount = 0;
+      let failedCount = 0;
       for (const item of itemsToDelete) {
         try {
           await invoke(deleteCommand, {
@@ -80,16 +132,123 @@
           successCount++;
         } catch (e) {
           console.error(`Failed to delete ${item.name}`, e);
+          failedCount++;
         }
       }
       if (successCount > 0) {
-        loadData();
+        await loadData();
+      }
+      if (failedCount > 0) {
+        error = `Failed to delete ${failedCount} ${title.toLowerCase()}.`;
       }
     }
   }
 
+  async function handleEditYaml(row: any) {
+    const kind = getKind();
+    if (!kind || !activeClusterStore.clusterId) return;
+
+    loadingYaml = true;
+    error = null;
+    yamlTarget = row;
+    showYamlDrawer = true;
+
+    try {
+      yamlContent = await invoke<string>("cluster_get_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        name: row.name,
+        namespace: isNamespaced(row) ? row.namespace : null,
+      });
+    } catch (e) {
+      console.error("Failed to load yaml", e);
+      error = `Failed to load YAML for ${row.name}.`;
+      showYamlDrawer = false;
+    } finally {
+      loadingYaml = false;
+    }
+  }
+
+  async function applyYamlChanges() {
+    if (!activeClusterStore.clusterId || !yamlContent) return;
+
+    const confirmed = await confirm("Apply YAML changes to the cluster?", {
+      title: "Apply Resource YAML",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+
+    applyingYaml = true;
+    error = null;
+    try {
+      await invoke("cluster_apply_resource_yaml", {
+        clusterId: activeClusterStore.clusterId,
+        yaml: yamlContent,
+      });
+      showYamlDrawer = false;
+      await loadData();
+    } catch (e) {
+      console.error("Failed to apply yaml", e);
+      error = `Failed to apply YAML changes: ${e}`;
+    } finally {
+      applyingYaml = false;
+    }
+  }
+
+  async function handleScale(row: any) {
+    const kind = getKind();
+    if (!kind || !scalableKinds.has(kind) || !activeClusterStore.clusterId || !isNamespaced(row)) return;
+
+    const input = window.prompt(`Scale ${row.name} to how many replicas?`, "1");
+    if (input === null) return;
+    const replicas = Number.parseInt(input, 10);
+    if (!Number.isInteger(replicas) || replicas < 0) {
+      error = "Replica count must be a non-negative integer.";
+      return;
+    }
+
+    try {
+      await invoke("cluster_scale_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        namespace: row.namespace,
+        name: row.name,
+        replicas,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to scale workload", e);
+      error = `Failed to scale ${row.name}.`;
+    }
+  }
+
+  async function handleRestart(row: any) {
+    const kind = getKind();
+    if (!kind || !restartableKinds.has(kind) || !activeClusterStore.clusterId || !isNamespaced(row)) return;
+
+    const confirmed = await confirm(`Restart rollout for ${row.name}?`, {
+      title: "Restart Workload",
+      kind: "warning",
+    });
+    if (!confirmed) return;
+
+    try {
+      await invoke("cluster_restart_workload", {
+        clusterId: activeClusterStore.clusterId,
+        kind,
+        namespace: row.namespace,
+        name: row.name,
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Failed to restart workload", e);
+      error = `Failed to restart ${row.name}.`;
+    }
+  }
+
   function getActions(row: any): MenuItem[] {
-    return [
+    const kind = getKind();
+    const actions: MenuItem[] = [
       {
         label: "View Details",
         action: () => {
@@ -98,6 +257,30 @@
         },
         icon: Eye,
       },
+      {
+        label: "Edit YAML",
+        action: () => handleEditYaml(row),
+        icon: FilePenLine,
+      },
+    ];
+
+    if (kind && scalableKinds.has(kind) && isNamespaced(row)) {
+      actions.push({
+        label: "Scale",
+        action: () => handleScale(row),
+        icon: Scaling,
+      });
+    }
+
+    if (kind && restartableKinds.has(kind) && isNamespaced(row)) {
+      actions.push({
+        label: "Restart",
+        action: () => handleRestart(row),
+        icon: RotateCw,
+      });
+    }
+
+    actions.push(
       {
         label: "Delete",
         action: async () => {
@@ -116,23 +299,39 @@
               loadData();
             } catch (e) {
               console.error("Failed to delete", e);
+              error = `Failed to delete ${row.name}.`;
             }
           }
         },
         icon: Trash2,
         danger: true,
-      },
-    ];
+      }
+    );
+
+    return actions;
   }
 </script>
 
 <div class="h-full">
+    {#if error}
+        <div class="mb-4 p-3 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" size="sm" onclick={loadData}>Retry</Button>
+                <Button variant="ghost" size="sm" onclick={() => (error = null)}>Dismiss</Button>
+            </div>
+        </div>
+    {/if}
+
     <DataTable
         {data}
         {columns}
         bind:search
         {loading}
         onRefresh={loadData}
+        emptyMessage={activeClusterStore.activeNamespace === "all"
+            ? `No ${title} found.`
+            : `No ${title} found in namespace "${activeClusterStore.activeNamespace}".`}
         actions={getActions}
         onRowClick={handleRowClick}
         batchActions={[
@@ -149,7 +348,7 @@
             {#if column.id === "images"}
                 <div class="flex flex-col gap-1">
                     {#if Array.isArray(value)}
-                        {#each value.slice(0, 2) as img}
+                        {#each value.slice(0, 2) as img, i (`${img}-${i}`)}
                             <span class="text-xs font-mono bg-bg-panel px-1 rounded truncate max-w-[200px]" title={img}>
                                 {img.split('/').pop()}
                             </span>
@@ -168,6 +367,15 @@
     </DataTable>
 
     <Drawer bind:open={showDrawer} title={selectedItem?.name || "Details"}>
+        {#snippet headerActions()}
+            <button
+                class="p-1.5 hover:bg-bg-panel rounded-md text-text-muted hover:text-text-main transition-colors"
+                onclick={() => selectedItem && handleEditYaml(selectedItem)}
+                title="Edit"
+            >
+                <Edit size={18} />
+            </button>
+        {/snippet}
         <div class="p-4 space-y-4">
             <h3 class="font-bold">Details</h3>
             {#if selectedItem}
@@ -197,7 +405,7 @@
                 <div>
                     <span class="text-text-muted">Images:</span>
                     <ul class="list-disc list-inside font-mono text-xs mt-1">
-                        {#each selectedItem.images as img}
+                        {#each (selectedItem.images || []) as img, i (`${img}-${i}`)}
                             <li>{img}</li>
                         {/each}
                     </ul>
@@ -206,12 +414,31 @@
                 <div>
                     <span class="text-text-muted">Labels:</span>
                     <div class="flex flex-wrap gap-1 mt-1">
-                        {#each Object.entries(selectedItem.labels) as [k, v]}
+                        {#each Object.entries(selectedItem.labels || {}) as [k, v] (k)}
                             <span class="px-2 py-0.5 bg-bg-main border border-border-main rounded text-xs font-mono">
                                 {k}: {v}
                             </span>
                         {/each}
                     </div>
+                </div>
+            {/if}
+        </div>
+    </Drawer>
+
+    <Drawer bind:open={showYamlDrawer} title={yamlTarget ? `Edit YAML: ${yamlTarget.name}` : "Edit YAML"} width="w-[900px]">
+        <div class="p-4 space-y-3 h-full flex flex-col">
+            {#if loadingYaml}
+                <div class="text-text-muted">Loading YAML...</div>
+            {:else}
+                <div class="flex-1 min-h-0">
+                    <CodeEditor bind:value={yamlContent} />
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <Button variant="outline" onclick={() => (showYamlDrawer = false)}>Cancel</Button>
+                    <Button onclick={applyYamlChanges} disabled={applyingYaml || !yamlContent.trim()}>
+                        <Save size={16} />
+                        {applyingYaml ? "Applying..." : "Apply YAML"}
+                    </Button>
                 </div>
             {/if}
         </div>

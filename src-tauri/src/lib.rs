@@ -18,8 +18,13 @@ pub fn run() {
 
     // Initialize cluster manager
     let db_path = config::get_app_config_dir().join("clusters.db");
-    let cluster_manager = cluster_manager::ClusterManager::new(db_path)
-        .expect("Failed to initialize cluster manager");
+    let cluster_manager = match cluster_manager::ClusterManager::new(db_path) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Failed to initialize cluster manager: {}", e);
+            std::process::exit(1);
+        }
+    };
     let cluster_manager_state = cluster_manager::ClusterManagerState(std::sync::Arc::new(
         std::sync::Mutex::new(cluster_manager),
     ));
@@ -42,9 +47,12 @@ pub fn run() {
             k8s::delete_pod,
             k8s::get_pod_events,
             k8s::stream_container_logs,
+            k8s::stop_stream_logs,
             k8s::start_pod_watch,
             // NEW: Cluster-based k8s commands
             k8s::cluster_list_namespaces,
+            k8s::cluster_list_namespaces_detailed,
+            k8s::cluster_delete_namespace,
             k8s::cluster_list_pods,
             k8s::cluster_delete_pod,
             k8s::cluster_get_pod_events,
@@ -52,6 +60,12 @@ pub fn run() {
             k8s::cluster_start_pod_watch,
             k8s::cluster_get_metrics,
             k8s::cluster_get_events,
+            k8s::cluster_list_events,
+            k8s::cluster_list_nodes,
+            k8s::cluster_get_resource_yaml,
+            k8s::cluster_apply_resource_yaml,
+            k8s::cluster_scale_workload,
+            k8s::cluster_restart_workload,
             // Workload commands
             k8s::cluster_list_deployments,
             k8s::cluster_delete_deployment,
@@ -96,8 +110,17 @@ pub fn run() {
             k8s::cluster_delete_service_account,
             k8s::cluster_list_roles,
             k8s::cluster_delete_role,
+            k8s::cluster_list_role_bindings,
+            k8s::cluster_delete_role_binding,
             k8s::cluster_list_cluster_roles,
             k8s::cluster_delete_cluster_role,
+            k8s::cluster_list_cluster_role_bindings,
+            k8s::cluster_delete_cluster_role_binding,
+            k8s::cluster_list_crds,
+            k8s::cluster_delete_crd,
+            k8s::cluster_check_helm_available,
+            k8s::cluster_list_helm_releases,
+            k8s::cluster_list_helm_charts,
             // Deployment details, pods, and events
             k8s::cluster_get_deployment_details,
             k8s::cluster_get_deployment_pods,
@@ -124,5 +147,8 @@ pub fn run() {
             config::import_kubeconfig
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("Error running tauri application: {}", e);
+            std::process::exit(1);
+        });
 }

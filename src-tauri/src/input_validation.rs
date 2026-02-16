@@ -120,6 +120,7 @@ pub fn validate_tags(tags: Vec<String>) -> Result<Vec<String>, String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

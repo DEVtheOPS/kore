@@ -24,4 +24,9 @@ ignore = [
     # Non-critical: Still functional, just no longer maintained
     # Waiting for Tauri to migrate away from unic crates
     "RUSTSEC-2025-0098",
+
+    # unic-ucd-ident - Unmaintained (from Tauri's urlpattern dependency)
+    # Non-critical: Still functional, just no longer maintained
+    # Waiting for Tauri to migrate away from unic crates
+    "RUSTSEC-2025-0100",
 ]

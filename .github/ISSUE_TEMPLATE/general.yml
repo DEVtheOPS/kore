@@ -1,0 +1,80 @@
+name: 💬 General Question or Discussion
+description: Ask a question or start a discussion about Kore
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about Kore? Want to discuss best practices or share your experience? You're in the right place!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Question Type
+      description: What kind of question or discussion is this?
+      options:
+        - How-to / Usage Help
+        - Configuration Help
+        - Kubernetes Integration
+        - Installation/Setup
+        - Performance Question
+        - Best Practices
+        - Feature Discussion
+        - General Discussion
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know or discuss?
+      placeholder: How do I... Why does... What is the best way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any additional context that might be helpful
+      placeholder: |
+        I'm trying to...
+        My setup includes...
+        I've already tried...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (if relevant)
+      description: Share details about your environment if it's relevant to your question
+      placeholder: |
+        - OS: macOS
+        - Kore Version: 0.2.0
+        - Kubernetes: EKS v1.28
+        - Number of clusters: 5
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots (if helpful)
+      description: Add screenshots to help explain your question
+      placeholder: You can drag and drop images here
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I've searched existing issues and discussions
+          required: true
+        - label: I've checked the documentation
+          required: false

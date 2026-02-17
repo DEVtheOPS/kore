@@ -1,0 +1,124 @@
+name: 🔒 Security Vulnerability Report
+description: Report a security vulnerability (will be kept private)
+title: "[Security]: "
+labels: ["security", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚠️ Security Vulnerability Reporting
+
+        **IMPORTANT:** If this is a critical security vulnerability that could be exploited, please report it privately to the maintainers instead of creating a public issue.
+
+        You can report security vulnerabilities via:
+        - GitHub Security Advisories: https://github.com/DEVtheOPS/kore/security/advisories/new
+        - Email: security@devtheops.com (if available)
+
+        For non-critical security improvements or suggestions, you can continue below.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this security issue?
+      options:
+        - Critical - Immediate action required (RCE, credential exposure, etc.)
+        - High - Significant security impact
+        - Medium - Moderate security concern
+        - Low - Minor security improvement
+        - Informational - Security best practice suggestion
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability Description
+      description: Describe the security vulnerability or concern
+      placeholder: There is a potential security issue where...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Vulnerability Category
+      description: What type of security issue is this?
+      options:
+        - Authentication/Authorization
+        - Code Injection
+        - Cross-Site Scripting (XSS)
+        - SQL Injection
+        - Command Injection
+        - Credential Exposure
+        - Insecure Dependencies
+        - Data Exposure/Privacy
+        - Cryptography
+        - Access Control
+        - Input Validation
+        - Configuration
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What could an attacker do if they exploited this vulnerability?
+      placeholder: An attacker could...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can this vulnerability be reproduced? (Be careful not to include actual exploit code in public issues)
+      placeholder: |
+        1. Navigate to...
+        2. Perform action...
+        3. Observe...
+    validations:
+      required: false
+
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected Versions
+      description: Which versions of Kore are affected?
+      placeholder: "0.2.0, 0.1.1, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: If you have suggestions for how to fix this issue, please share them
+      placeholder: This could be mitigated by...
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any relevant CVEs, security advisories, or documentation
+      placeholder: |
+        - CVE-XXXX-XXXXX
+        - https://...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: I have verified this is a genuine security concern
+          required: true
+        - label: I understand that critical vulnerabilities should be reported privately
+          required: true
+        - label: I am willing to work with maintainers on responsible disclosure
+          required: false

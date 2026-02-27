@@ -19,3 +19,6 @@ test-results/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+dolt-server.activity
+dolt-monitor.pid
+dolt-server.log

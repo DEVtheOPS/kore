@@ -1,6 +1,0 @@
-repos:
-  primary: "."
-  additional:
-    - "/Users/digitalfiz/.beads-planning"
-
-sync-branch: "beads-sync"

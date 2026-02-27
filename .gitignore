@@ -15,3 +15,7 @@ test-results/
 # CI generated files
 /update.json
 /gh-pages-update/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

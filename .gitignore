@@ -16,6 +16,11 @@ test-results/
 /update.json
 /gh-pages-update/
 
+# Playwright screenshots — generated locally by `pnpm screenshots`
+# and injected into the docs site by CI. Never commit these.
+/screenshots/
+/screenshot-report/
+
 # Dolt database files (added by bd init)
 .dolt/
 *.db

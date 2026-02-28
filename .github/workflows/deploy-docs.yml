@@ -1,0 +1,118 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Rebuild docs when content, config, or screenshots spec changes
+      - 'docs/**'
+      - 'tests/screenshots/**'
+      - '.github/workflows/deploy-docs.yml'
+  # Also rebuild whenever the screenshots workflow finishes successfully
+  # so the docs always show the latest captures.
+  workflow_run:
+    workflows: ['Generate Screenshots']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build Starlight & deploy to gh-pages
+    # Skip if triggered by a failed screenshots run
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: write   # needed by peaceiris/actions-gh-pages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Screenshots ────────────────────────────────────────────────────────
+      - name: Download screenshots artifact (from screenshots workflow)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: app-screenshots
+          # Artifacts belong to the triggering workflow run
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: screenshots/
+        continue-on-error: true   # Don't fail if no artifact yet
+
+      - name: Download latest screenshots artifact (direct push / manual)
+        if: github.event_name != 'workflow_run'
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          workflow: screenshots.yml
+          branch: main
+          name: app-screenshots
+          path: screenshots/
+          if_no_artifact_found: warn   # First deploy may have no artifact
+        continue-on-error: true
+
+      - name: Copy screenshots into docs public directory
+        run: |
+          if [ -d screenshots ] && [ "$(ls -A screenshots)" ]; then
+            mkdir -p docs/public/screenshots
+            cp -r screenshots/. docs/public/screenshots/
+            echo "✓ Copied $(ls screenshots | wc -l | tr -d ' ') screenshots"
+          else
+            echo "⚠ No screenshots found — docs will build without them"
+            mkdir -p docs/public/screenshots
+          fi
+
+      # ── Docs build ─────────────────────────────────────────────────────────
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Starlight docs
+        working-directory: docs
+        run: pnpm build
+
+      # ── Preserve update.json from existing gh-pages ───────────────────────
+      # The release workflow (release.yml) pushes update.json to gh-pages for
+      # Tauri's auto-updater. We include it in this deploy so it isn't clobbered.
+      - name: Preserve update.json
+        run: |
+          curl -sf \
+            "https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/update.json" \
+            -o docs/dist/update.json \
+            || echo '{}' > docs/dist/update.json
+          echo "✓ update.json preserved"
+
+      # ── Deploy ──────────────────────────────────────────────────────────────
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/dist
+          publish_branch: gh-pages
+          # Single orphan commit keeps gh-pages history clean.
+          # update.json is included in docs/dist above.
+          force_orphan: true
+          commit_message: 'docs: deploy ${{ github.sha }}'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

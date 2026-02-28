@@ -1,0 +1,370 @@
+---
+// Landing page — lives outside Starlight's content collection so we have
+// full layout control while still inheriting the Starlight theme shell.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+const features = [
+  {
+    icon: '⚡',
+    title: 'Multi-Cluster',
+    body: 'Connect and switch between unlimited clusters. Bookmark favourites, add custom icons, and pick up exactly where you left off.',
+  },
+  {
+    icon: '🔄',
+    title: 'Real-Time Updates',
+    body: 'Pod watch streams and live log tailing keep every view current without ever needing a manual refresh.',
+  },
+  {
+    icon: '🗂️',
+    title: 'All Resource Types',
+    body: 'First-class support for 35+ resource types — Pods, Deployments, StatefulSets, Helm releases, CRDs, RBAC, PVCs, and more.',
+  },
+  {
+    icon: '✏️',
+    title: 'In-App YAML Editor',
+    body: 'Edit any resource\'s YAML with syntax highlighting and apply changes back to the cluster without leaving Kore.',
+  },
+  {
+    icon: '⚓',
+    title: 'Helm Native',
+    body: 'Browse installed releases, inspect chart versions and app versions, and spot drift at a glance.',
+  },
+  {
+    icon: '🔑',
+    title: 'RBAC Explorer',
+    body: 'Visualise Roles, ClusterRoles, bindings, and service accounts across every namespace in one place.',
+  },
+]
+
+const screenshots = [
+  { file: '04-cluster-dashboard.png', caption: 'Cluster dashboard with live metrics' },
+  { file: '07-cluster-pods.png',      caption: 'Pod list with real-time status' },
+  { file: '08-cluster-deployments.png', caption: 'Deployment management' },
+  { file: '38-panel-pod-detail.png',  caption: 'Pod detail side panel' },
+]
+
+const installOptions = [
+  { os: 'macOS',   icon: '🍎', cmd: 'brew install --cask devtheops/tap/kore' },
+  { os: 'Linux',   icon: '🐧', cmd: 'See GitHub Releases for .AppImage / .deb' },
+  { os: 'Windows', icon: '🪟', cmd: 'See GitHub Releases for .msi installer' },
+]
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Kore — Kubernetes IDE',
+    description:
+      'A lightweight, open-source desktop IDE for managing Kubernetes clusters. Multi-cluster, real-time, no kubectl required.',
+    template: 'splash',
+  }}
+>
+  <!-- ── Hero ──────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-badge">Open Source · Free Forever</div>
+    <h1 class="hero-title">
+      Kubernetes<br />
+      <span class="hero-accent">made intuitive</span>
+    </h1>
+    <p class="hero-subtitle">
+      A lightweight desktop IDE for managing Kubernetes clusters.
+      Real-time updates, 35+ resource types, Helm integration — all without
+      leaving your machine.
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/DEVtheOPS/kore/releases/latest" class="btn btn-primary">
+        Download Latest
+      </a>
+      <a href={`${BASE}/getting-started/installation/`} class="btn btn-secondary">
+        Documentation
+      </a>
+      <a href="https://github.com/DEVtheOPS/kore" class="btn btn-ghost">
+        ★ GitHub
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Screenshots ───────────────────────────────────────────────────── -->
+  <section class="section">
+    <h2 class="section-title">See it in action</h2>
+    <div class="screenshot-grid">
+      {screenshots.map((s) => (
+        <figure class="screenshot-card">
+          <div class="screenshot-frame">
+            <img
+              src={`${BASE}/screenshots/${s.file}`}
+              alt={s.caption}
+              loading="lazy"
+              decoding="async"
+              onerror="this.parentElement.parentElement.style.display='none'"
+            />
+          </div>
+          <figcaption>{s.caption}</figcaption>
+        </figure>
+      ))}
+    </div>
+  </section>
+
+  <!-- ── Features ──────────────────────────────────────────────────────── -->
+  <section class="section">
+    <h2 class="section-title">Everything you need</h2>
+    <div class="features-grid">
+      {features.map((f) => (
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">{f.icon}</span>
+          <h3 class="feature-title">{f.title}</h3>
+          <p class="feature-body">{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ── Install ────────────────────────────────────────────────────────── -->
+  <section class="section install-section">
+    <h2 class="section-title">Install in seconds</h2>
+    <div class="install-grid">
+      {installOptions.map((opt) => (
+        <div class="install-card">
+          <div class="install-header">
+            <span class="install-icon" aria-hidden="true">{opt.icon}</span>
+            <span class="install-os">{opt.os}</span>
+          </div>
+          <code class="install-cmd">{opt.cmd}</code>
+        </div>
+      ))}
+    </div>
+    <p class="install-note">
+      Built with <a href="https://tauri.app">Tauri v2</a> — ships as a tiny
+      native binary (&lt; 20 MB). No Electron. No Node.js runtime.
+    </p>
+  </section>
+</StarlightPage>
+
+<style>
+  /* ── Reset inside StarlightPage content area ─────────────────────────── */
+  :global(.sl-markdown-content) {
+    max-width: 100% !important;
+  }
+
+  /* ── Hero ──────────────────────────────────────────────────────────────── */
+  .hero {
+    text-align: center;
+    padding: 4rem 1rem 3rem;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+    border-radius: 999px;
+    padding: 0.25rem 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 0 0 1rem;
+    color: var(--sl-color-white);
+  }
+
+  .hero-accent {
+    color: var(--sl-color-accent);
+  }
+
+  .hero-subtitle {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--sl-color-gray-2);
+    max-width: 42rem;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── Buttons ───────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+
+  .btn:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
+  }
+
+  .btn-secondary {
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    border: 1px solid var(--sl-color-gray-5);
+  }
+
+  .btn-ghost {
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--sl-color-gray-5);
+  }
+
+  /* ── Sections ──────────────────────────────────────────────────────────── */
+  .section {
+    padding: 3rem 0;
+    border-top: 1px solid var(--sl-color-gray-6);
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--sl-color-white);
+    margin: 0 0 2.5rem;
+  }
+
+  /* ── Screenshots ───────────────────────────────────────────────────────── */
+  .screenshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .screenshot-card {
+    margin: 0;
+  }
+
+  .screenshot-frame {
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+  }
+
+  .screenshot-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .screenshot-card figcaption {
+    font-size: 0.825rem;
+    color: var(--sl-color-gray-3);
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  /* ── Features grid ─────────────────────────────────────────────────────── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .feature-card {
+    background: var(--sl-color-gray-7);
+    border: 1px solid var(--sl-color-gray-6);
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
+
+  .feature-icon {
+    font-size: 1.75rem;
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--sl-color-white);
+    margin: 0 0 0.5rem;
+  }
+
+  .feature-body {
+    font-size: 0.9rem;
+    color: var(--sl-color-gray-3);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ── Install ───────────────────────────────────────────────────────────── */
+  .install-section {
+    text-align: center;
+  }
+
+  .install-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: left;
+  }
+
+  .install-card {
+    background: var(--sl-color-gray-7);
+    border: 1px solid var(--sl-color-gray-6);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .install-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .install-icon {
+    font-size: 1.25rem;
+  }
+
+  .install-os {
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  .install-cmd {
+    display: block;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.8rem;
+    color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    word-break: break-all;
+  }
+
+  .install-note {
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-3);
+    margin: 0;
+  }
+
+  .install-note a {
+    color: var(--sl-color-accent);
+    text-decoration: none;
+  }
+</style>

@@ -14,7 +14,8 @@
     "test:debug": "playwright test --debug",
     "test:unit": "vitest",
     "test:coverage": "vitest run --coverage",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -48,6 +49,7 @@
     "@tauri-apps/cli": "^2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/svelte": "^5.3.1",
+    "@types/node": "^25.3.2",
     "@vitest/coverage-v8": "^4.0.18",
     "jsdom": "^27.4.0",
     "playwright": "^1.58.1",

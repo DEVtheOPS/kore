@@ -1,0 +1,24 @@
+/* Kore docs — Starlight theme overrides */
+
+:root {
+  /* Accent: teal-blue, matching Kore's UI palette */
+  --sl-color-accent-low:  #0d2a3d;
+  --sl-color-accent:      #38bdf8;
+  --sl-color-accent-high: #0f172a;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low:  #ddf4ff;
+  --sl-color-accent:      #0284c7;
+  --sl-color-accent-high: #ffffff;
+}
+
+/* Tighten the sidebar font size slightly */
+.sidebar-content {
+  font-size: 0.875rem;
+}
+
+/* Code blocks: slightly rounder corners */
+.expressive-code .frame {
+  border-radius: 10px;
+}

@@ -1,0 +1,62 @@
+name: Generate Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Re-run when the app UI or mock data changes
+      - 'src/**'
+      - 'tests/screenshots/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    name: Capture app screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Install Chromium system deps (cached hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Capture screenshots
+        run: pnpm screenshots
+
+      - name: Upload screenshots artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-screenshots
+          path: screenshots/
+          retention-days: 90
+          if-no-files-found: error

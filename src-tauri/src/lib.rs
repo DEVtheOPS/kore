@@ -6,9 +6,6 @@ mod input_validation;
 mod k8s;
 mod security;
 
-// Legacy modules kept temporarily during the refactor (Phase 8 will remove these).
-mod cluster_manager;
-
 use db::AppDbState;
 use std::sync::Arc;
 
@@ -41,22 +38,6 @@ pub fn run() {
     };
     let app_db_state = AppDbState(Arc::new(app_db));
 
-    // 4. Legacy cluster manager (kept for backwards compat during refactor).
-    let legacy_db_path = config::get_app_config_dir().join("clusters_legacy.db");
-    let cluster_manager = match cluster_manager::ClusterManager::new(legacy_db_path) {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!("Warning: Failed to initialise legacy cluster manager: {}", e);
-            // Don't exit — legacy manager is not critical for new architecture.
-            // Create a dummy in-memory manager so the app still starts.
-            cluster_manager::ClusterManager::new(std::path::PathBuf::from(":memory:"))
-                .expect("In-memory SQLite should always succeed")
-        }
-    };
-    let cluster_manager_state = cluster_manager::ClusterManagerState(Arc::new(
-        std::sync::Mutex::new(cluster_manager),
-    ));
-
     tauri::Builder::default()
         .plugin(tauri_plugin_websocket::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -66,8 +47,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // New encrypted DB state
         .manage(app_db_state)
-        // Legacy state (kept during refactor)
-        .manage(cluster_manager_state)
         .manage(k8s::WatcherState::default())
         .invoke_handler(tauri::generate_handler![
             // ── New: Cluster CRUD ────────────────────────────────────────────
@@ -94,7 +73,6 @@ pub fn run() {
             config::settings::settings_get,
             config::settings::settings_update,
             // ── New: Security ────────────────────────────────────────────────
-            security::lock::security_biometrics_available,
             security::lock::security_verify_keychain_access,
             // ── New: Import (updated) ─────────────────────────────────────────
             import::import_discover_file,

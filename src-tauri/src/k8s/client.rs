@@ -1,11 +1,13 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
+use crate::db::{clusters, contexts, users};
 use crate::k8s::common::{calculate_age, get_created_at};
 use k8s_openapi::api::core::v1::Namespace;
 use kube::api::{Api, DeleteParams, ListParams};
-use kube::config::Kubeconfig;
+use kube::config::{Kubeconfig, NamedAuthInfo, NamedCluster, NamedContext};
 use kube::{Client, Config};
 use std::path::PathBuf;
 use tauri::State;
+use tempfile::NamedTempFile;
 
 // Helper to find which file contains the context
 pub fn find_kubeconfig_path_for_context(context_name: &str) -> Option<PathBuf> {
@@ -58,48 +60,81 @@ pub async fn create_client_for_context(context_name: &str) -> Result<Client, Str
     Client::try_from(config).map_err(|e| format!("Failed to create client: {}", e))
 }
 
-// NEW: Helper to create client from cluster ID
+fn parse_named_cluster(config: &str) -> Result<NamedCluster, String> {
+    serde_json::from_str(config).map_err(|e| format!("Failed to parse cluster config: {}", e))
+}
+
+fn parse_named_user(config: &str) -> Result<NamedAuthInfo, String> {
+    serde_json::from_str(config).map_err(|e| format!("Failed to parse user config: {}", e))
+}
+
+fn parse_named_context(config: &str) -> Result<NamedContext, String> {
+    serde_json::from_str(config).map_err(|e| format!("Failed to parse context config: {}", e))
+}
+
+fn build_context_kubeconfig(db: &crate::db::AppDb, context_id: &str) -> Result<(Kubeconfig, String), String> {
+    let context = contexts::get_context(db, context_id)?
+        .ok_or_else(|| format!("Context '{}' not found", context_id))?;
+    let cluster = clusters::get_cluster(db, &context.cluster_id)?
+        .ok_or_else(|| format!("Cluster '{}' not found", context.cluster_id))?;
+    let user = users::get_user(db, &context.user_id)?
+        .ok_or_else(|| format!("User '{}' not found", context.user_id))?;
+
+    let named_context = parse_named_context(&context.config)?;
+    let context_name = named_context.name.clone();
+
+    let kubeconfig = Kubeconfig {
+        clusters: vec![parse_named_cluster(&cluster.config)?],
+        auth_infos: vec![parse_named_user(&user.config)?],
+        contexts: vec![named_context],
+        current_context: Some(context_name.clone()),
+        ..Default::default()
+    };
+
+    Ok((kubeconfig, context_name))
+}
+
+pub async fn create_temp_kubeconfig_for_cluster(
+    cluster_id: &str,
+    state: &State<'_, AppDbState>,
+) -> Result<(NamedTempFile, String), String> {
+    let db = state.0.clone();
+    let context_id = cluster_id.to_string();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let (kubeconfig, context_name) = build_context_kubeconfig(&db, &context_id)?;
+        let yaml = serde_yaml::to_string(&kubeconfig)
+            .map_err(|e| format!("Failed to serialize kubeconfig: {}", e))?;
+
+        let mut file = NamedTempFile::new()
+            .map_err(|e| format!("Failed to create temporary kubeconfig: {}", e))?;
+        use std::io::Write;
+        file.write_all(yaml.as_bytes())
+            .map_err(|e| format!("Failed to write temporary kubeconfig: {}", e))?;
+
+        Ok((file, context_name))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// Compatibility helper: `cluster_id` is still the parameter name in the command
+// surface, but it now refers to a context UUID backed by the encrypted DB.
 pub async fn create_client_for_cluster(
     cluster_id: &str,
-    state: &State<'_, ClusterManagerState>,
+    state: &State<'_, AppDbState>,
 ) -> Result<Client, String> {
-    let manager = state.0.clone();
-    let cluster_id = cluster_id.to_string();
+    let db = state.0.clone();
+    let context_id = cluster_id.to_string();
 
-    // 1. Blocking I/O (DB + File Read)
-    let kubeconfig = tauri::async_runtime::spawn_blocking(move || {
-        // Get config path
-        let config_path = {
-            let manager = manager
-                .lock()
-                .map_err(|e| format!("Failed to acquire lock: {}", e))?;
-            let cluster = manager
-                .get_cluster(&cluster_id)?
-                .ok_or_else(|| format!("Cluster '{}' not found", cluster_id))?;
-            PathBuf::from(&cluster.config_path)
-        };
-
-        if !config_path.exists() {
-            return Err(format!("Config file not found: {:?}", config_path));
-        }
-
-        let kubeconfig = Kubeconfig::read_from(&config_path)
-            .map_err(|e| format!("Failed to read kubeconfig {:?}: {}", config_path, e))?;
-
-        Ok(kubeconfig)
+    let (kubeconfig, context_name) = tauri::async_runtime::spawn_blocking(move || {
+        build_context_kubeconfig(&db, &context_id)
     })
     .await
     .map_err(|e| e.to_string())??;
 
-    // 2. Async Config Loading
-    // The extracted config should have only one context, use current_context
-    let context_name = kubeconfig
-        .current_context
-        .as_ref()
-        .ok_or_else(|| "No current context in kubeconfig".to_string())?;
-
     let options = kube::config::KubeConfigOptions {
-        context: Some(context_name.clone()),
+        context: Some(context_name),
         ..Default::default()
     };
 
@@ -164,7 +199,7 @@ pub async fn list_namespaces(context_name: String) -> Result<Vec<String>, String
 #[tauri::command]
 pub async fn cluster_list_namespaces(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<String>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let ns_api: Api<Namespace> = Api::all(client);
@@ -199,7 +234,7 @@ pub struct NamespaceSummary {
 #[tauri::command]
 pub async fn cluster_list_namespaces_detailed(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<NamespaceSummary>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let ns_api: Api<Namespace> = Api::all(client);
@@ -240,7 +275,7 @@ pub async fn cluster_list_namespaces_detailed(
 pub async fn cluster_delete_namespace(
     cluster_id: String,
     name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<(), String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let ns_api: Api<Namespace> = Api::all(client);

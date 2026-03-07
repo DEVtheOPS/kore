@@ -1,18 +1,22 @@
 import { invoke } from '@tauri-apps/api/core';
-import { clustersStore } from './clusters.svelte';
+import { contextsStore } from './contexts.svelte';
 
-const STORAGE_KEY = 'kore-active-cluster';
+const STORAGE_KEY = 'kore-active-context';
 
-class ActiveClusterStore {
-  clusterId = $state<string | null>(null);
+class ActiveContextStore {
+  contextId = $state<string | null>(null);
   namespaces = $state<string[]>([]);
   activeNamespace = $state<string>('all');
   loading = $state(false);
 
+  get clusterId(): string | null {
+    return this.contextId;
+  }
+
   get contextName(): string | null {
-    if (!this.clusterId) return null;
-    const cluster = clustersStore.clusters.find(c => c.id === this.clusterId);
-    return cluster?.context_name || null;
+    if (!this.contextId) return null;
+    const context = contextsStore.contexts.find((item) => item.id === this.contextId);
+    return context?.name || null;
   }
 
   constructor() {
@@ -21,41 +25,45 @@ class ActiveClusterStore {
 
   loadFromStorage() {
     if (typeof localStorage === 'undefined') return;
-    
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        this.clusterId = data.clusterId;
+        this.contextId = data.contextId || data.clusterId || null;
         this.activeNamespace = data.activeNamespace || 'all';
       } catch (e) {
-        console.error('Failed to parse active cluster', e);
+        console.error('Failed to parse active context', e);
       }
     }
   }
 
   save() {
     if (typeof localStorage === 'undefined') return;
-    
+
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        clusterId: this.clusterId,
+        contextId: this.contextId,
         activeNamespace: this.activeNamespace,
-      })
+      }),
     );
   }
 
-  async setCluster(clusterId: string | null) {
-    this.clusterId = clusterId;
+  async setCluster(contextId: string | null) {
+    this.contextId = contextId;
     this.activeNamespace = 'all';
     this.save();
-    
-    if (clusterId) {
+
+    if (contextId) {
       await this.fetchNamespaces();
     } else {
       this.namespaces = [];
     }
+  }
+
+  async setContext(contextId: string | null) {
+    await this.setCluster(contextId);
   }
 
   setNamespace(namespace: string) {
@@ -64,7 +72,7 @@ class ActiveClusterStore {
   }
 
   async fetchNamespaces() {
-    if (!this.clusterId) {
+    if (!this.contextId) {
       this.namespaces = [];
       return;
     }
@@ -72,11 +80,10 @@ class ActiveClusterStore {
     this.loading = true;
     try {
       const nss = await invoke<string[]>('cluster_list_namespaces', {
-        clusterId: this.clusterId,
+        clusterId: this.contextId,
       });
       this.namespaces = nss.sort();
-      
-      // Reset to 'all' if current namespace doesn't exist
+
       if (this.activeNamespace !== 'all' && !this.namespaces.includes(this.activeNamespace)) {
         this.activeNamespace = 'all';
         this.save();
@@ -90,4 +97,5 @@ class ActiveClusterStore {
   }
 }
 
-export const activeClusterStore = new ActiveClusterStore();
+export const activeContextStore = new ActiveContextStore();
+export const activeClusterStore = activeContextStore;

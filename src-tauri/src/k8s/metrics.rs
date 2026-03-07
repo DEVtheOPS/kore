@@ -1,4 +1,4 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
 use crate::k8s::client::create_client_for_cluster;
 use crate::k8s::common::{calculate_age, get_created_at};
 use k8s_openapi::api::core::v1::{Event, Node, Pod};
@@ -228,7 +228,7 @@ fn map_node_to_summary(node: Node) -> NodeSummary {
 #[tauri::command]
 pub async fn cluster_get_metrics(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<ClusterMetrics, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 
@@ -319,7 +319,7 @@ pub async fn cluster_get_metrics(
 #[tauri::command]
 pub async fn cluster_get_events(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<WarningEvent>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let events: Api<Event> = Api::all(client);
@@ -359,7 +359,7 @@ pub async fn cluster_list_events(
     cluster_id: String,
     namespace: Option<String>,
     include_normal: Option<bool>,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<ClusterEventSummary>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let events: Api<Event> = if let Some(ns) = namespace.clone() {
@@ -422,7 +422,7 @@ pub async fn cluster_list_events(
 #[tauri::command]
 pub async fn cluster_list_nodes(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<NodeSummary>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let nodes: Api<Node> = Api::all(client);

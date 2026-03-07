@@ -1,24 +1,24 @@
 <script lang="ts">
   import {
-    LayoutDashboard,
-    Layers,
-    Settings as SettingsIcon,
+    Activity,
+    Anchor,
     Box,
+    Cpu,
+    Database,
     FileText,
     HardDrive,
+    LayoutDashboard,
     Network,
-    Anchor,
-    Database,
-    Cpu,
-    Activity,
+    Settings as SettingsIcon,
     Shield,
-  } from "lucide-svelte";
-  import Select from "$lib/components/ui/Select.svelte";
-  import SidebarGroup from "$lib/components/ui/SidebarGroup.svelte";
-  import type { Cluster } from "$lib/stores/clusters.svelte";
+  } from 'lucide-svelte';
 
-  let { cluster, namespaces, activeNamespace, onNamespaceChange } = $props<{
-    cluster: Cluster;
+  import Select from '$lib/components/ui/Select.svelte';
+  import SidebarGroup from '$lib/components/ui/SidebarGroup.svelte';
+  import type { ContextRecord } from '$lib/stores/contexts.svelte';
+
+  let { context, namespaces, activeNamespace, onNamespaceChange } = $props<{
+    context: ContextRecord;
     namespaces: string[];
     activeNamespace: string;
     onNamespaceChange: (ns: string) => void;
@@ -34,43 +34,59 @@
     custom: false,
   });
 
-  const clusterId = $derived(cluster.id);
+  const contextId = $derived(context.id);
+
+  function getColorForString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i += 1) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 60%, 50%)`;
+  }
 </script>
 
-<aside class="flex flex-col h-full w-64 bg-bg-sidebar border-r border-border-main text-text-main">
-  <!-- Cluster Info Area -->
-  <div class="p-4 border-b border-border-subtle space-y-3">
-    <div class="flex items-center gap-2 px-1">
-      {#if cluster.icon}
-        {#if cluster.icon.startsWith("http") || cluster.icon.startsWith("data:")}
-          <img src={cluster.icon} alt={cluster.name} class="w-6 h-6 rounded object-contain" />
+<aside class="flex h-full w-64 flex-col border-r border-border-main bg-bg-sidebar text-text-main">
+  <div class="space-y-3 border-b border-border-subtle p-4">
+    <div class="flex items-center gap-3 px-1">
+      {#if context.icon}
+        {#if context.icon.startsWith('http') || context.icon.startsWith('data:')}
+          <img
+            src={context.icon}
+            alt={context.display_name}
+            class="h-8 w-8 rounded-full border-2 object-contain"
+            style:border-color={context.icon_ring_color || 'var(--color-primary)'}
+          />
         {:else}
-          <span class="text-xl">{cluster.icon}</span>
+          <div class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xl" style:border-color={context.icon_ring_color || 'var(--color-primary)'}>
+            {context.icon}
+          </div>
         {/if}
       {:else}
-        <div class="w-6 h-6 rounded bg-primary/20 flex items-center justify-center text-xs font-bold">
-          {cluster.name.charAt(0).toUpperCase()}
+        <div
+          class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold text-white"
+          style="background-color: {getColorForString(context.display_name)}; border-color: {context.icon_ring_color || 'var(--color-primary)'};"
+        >
+          {context.display_name.charAt(0).toUpperCase()}
         </div>
       {/if}
-      <span class="font-bold text-lg truncate">{cluster.name}</span>
+
+      <div class="min-w-0">
+        <div class="truncate font-bold text-lg">{context.display_name}</div>
+        <div class="truncate text-xs text-text-muted">{context.cluster_display_name}</div>
+      </div>
     </div>
 
-    <!-- Cluster Settings Link -->
     <a
-      href="/cluster/{clusterId}/settings"
-      class="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-bg-main text-sm text-text-muted hover:text-text-main transition-colors"
+      href="/context/{contextId}/settings"
+      class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-main hover:text-text-main"
     >
       <SettingsIcon size={16} />
-      <span>Cluster Settings</span>
+      <span>Context Settings</span>
     </a>
 
-    <!-- Namespace Dropdown -->
     <div>
-      <label
-        for="namespace-select"
-        class="text-xs font-semibold text-text-muted px-1 uppercase mb-1 block"
-        >Namespace</label
-      >
+      <label for="namespace-select" class="mb-1 block px-1 text-xs font-semibold uppercase text-text-muted">Namespace</label>
       <Select
         id="namespace-select"
         options={["all", ...namespaces]}
@@ -81,180 +97,75 @@
     </div>
   </div>
 
-  <!-- Navigation Links -->
-  <nav class="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-    <a
-      href="/cluster/{clusterId}/dashboard"
-      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
-    >
-      <LayoutDashboard size={18} class="group-hover:text-primary transition-colors" />
+  <nav class="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+    <a href="/context/{contextId}/dashboard" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-bg-popover">
+      <LayoutDashboard size={18} class="transition-colors group-hover:text-primary" />
       <span>Dashboard</span>
     </a>
 
-    <a
-      href="/cluster/{clusterId}/nodes"
-      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
-    >
-      <Cpu size={18} class="group-hover:text-primary transition-colors" />
+    <a href="/context/{contextId}/nodes" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-bg-popover">
+      <Cpu size={18} class="transition-colors group-hover:text-primary" />
       <span>Nodes</span>
     </a>
 
     <SidebarGroup title="Workloads" icon={Box} bind:open={groups.workloads}>
-      <a
-        href="/cluster/{clusterId}/workloads"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Overview</a
-      >
-      <a
-        href="/cluster/{clusterId}/pods"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Pods</a
-      >
-      <a
-        href="/cluster/{clusterId}/deployments"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Deployments</a
-      >
-      <a
-        href="/cluster/{clusterId}/statefulsets"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">StatefulSets</a
-      >
-      <a
-        href="/cluster/{clusterId}/daemonsets"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">DaemonSets</a
-      >
-      <a
-        href="/cluster/{clusterId}/replicasets"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">ReplicaSets</a
-      >
-      <a
-        href="/cluster/{clusterId}/jobs"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Jobs</a
-      >
-      <a
-        href="/cluster/{clusterId}/cronjobs"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">CronJobs</a
-      >
+      <a href="/context/{contextId}/workloads" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Overview</a>
+      <a href="/context/{contextId}/pods" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Pods</a>
+      <a href="/context/{contextId}/deployments" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Deployments</a>
+      <a href="/context/{contextId}/statefulsets" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">StatefulSets</a>
+      <a href="/context/{contextId}/daemonsets" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">DaemonSets</a>
+      <a href="/context/{contextId}/replicasets" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">ReplicaSets</a>
+      <a href="/context/{contextId}/jobs" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Jobs</a>
+      <a href="/context/{contextId}/cronjobs" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">CronJobs</a>
     </SidebarGroup>
 
     <SidebarGroup title="Configuration" icon={FileText} bind:open={groups.config}>
-      <a
-        href="/cluster/{clusterId}/config-maps"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">ConfigMaps</a
-      >
-      <a
-        href="/cluster/{clusterId}/secrets"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Secrets</a
-      >
-      <a
-        href="/cluster/{clusterId}/resource-quotas"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Resource Quotas</a
-      >
-      <a
-        href="/cluster/{clusterId}/limit-ranges"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Limit Ranges</a
-      >
-      <a
-        href="/cluster/{clusterId}/hpa"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm"
-        >HPA</a
-      >
-      <a
-        href="/cluster/{clusterId}/pdb"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm"
-        >Pod Disruption Budgets</a
-      >
+      <a href="/context/{contextId}/config-maps" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">ConfigMaps</a>
+      <a href="/context/{contextId}/secrets" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Secrets</a>
+      <a href="/context/{contextId}/resource-quotas" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Resource Quotas</a>
+      <a href="/context/{contextId}/limit-ranges" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Limit Ranges</a>
+      <a href="/context/{contextId}/hpa" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Horizontal Pod Autoscalers</a>
+      <a href="/context/{contextId}/pdb" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Pod Disruption Budgets</a>
     </SidebarGroup>
 
     <SidebarGroup title="Network" icon={Network} bind:open={groups.network}>
-      <a
-        href="/cluster/{clusterId}/services"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Services</a
-      >
-      <a
-        href="/cluster/{clusterId}/endpoints"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Endpoints</a
-      >
-      <a
-        href="/cluster/{clusterId}/ingresses"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Ingresses</a
-      >
-      <a
-        href="/cluster/{clusterId}/network-policies"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Network Policies</a
-      >
+      <a href="/context/{contextId}/services" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Services</a>
+      <a href="/context/{contextId}/endpoints" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Endpoints</a>
+      <a href="/context/{contextId}/ingresses" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Ingresses</a>
+      <a href="/context/{contextId}/network-policies" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Network Policies</a>
     </SidebarGroup>
 
     <SidebarGroup title="Storage" icon={HardDrive} bind:open={groups.storage}>
-      <a
-        href="/cluster/{clusterId}/pvc"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm"
-        >Persistent Volume Claims</a
-      >
-      <a
-        href="/cluster/{clusterId}/pv"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm"
-        >Persistent Volumes</a
-      >
-      <a
-        href="/cluster/{clusterId}/storage-classes"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Storage Classes</a
-      >
+      <a href="/context/{contextId}/pvc" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">PersistentVolumeClaims</a>
+      <a href="/context/{contextId}/pv" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">PersistentVolumes</a>
+      <a href="/context/{contextId}/storage-classes" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Storage Classes</a>
     </SidebarGroup>
 
     <SidebarGroup title="Access Control" icon={Shield} bind:open={groups.access}>
-      <a
-        href="/cluster/{clusterId}/service-accounts"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Service Accounts</a
-      >
-      <a
-        href="/cluster/{clusterId}/roles"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Roles</a
-      >
-      <a
-        href="/cluster/{clusterId}/role-bindings"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Role Bindings</a
-      >
-      <a
-        href="/cluster/{clusterId}/cluster-roles"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Cluster Roles</a
-      >
-      <a
-        href="/cluster/{clusterId}/cluster-role-bindings"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Cluster Role Bindings</a
-      >
+      <a href="/context/{contextId}/service-accounts" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Service Accounts</a>
+      <a href="/context/{contextId}/roles" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Roles</a>
+      <a href="/context/{contextId}/role-bindings" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Role Bindings</a>
+      <a href="/context/{contextId}/cluster-roles" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Cluster Roles</a>
+      <a href="/context/{contextId}/cluster-role-bindings" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Cluster Role Bindings</a>
     </SidebarGroup>
 
-    <a
-      href="/cluster/{clusterId}/namespaces"
-      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
-    >
-      <Layers size={18} class="group-hover:text-primary transition-colors" />
+    <a href="/context/{contextId}/namespaces" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-bg-popover">
+      <Database size={18} class="transition-colors group-hover:text-primary" />
       <span>Namespaces</span>
     </a>
 
-    <a
-      href="/cluster/{clusterId}/events"
-      class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-bg-popover text-sm group"
-    >
-      <Activity size={18} class="group-hover:text-primary transition-colors" />
+    <a href="/context/{contextId}/events" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-bg-popover">
+      <Activity size={18} class="transition-colors group-hover:text-primary" />
       <span>Events</span>
     </a>
 
     <SidebarGroup title="Helm" icon={Anchor} bind:open={groups.helm}>
-      <a
-        href="/cluster/{clusterId}/helm/releases"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Releases</a
-      >
-      <a
-        href="/cluster/{clusterId}/helm/charts"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm">Charts</a
-      >
+      <a href="/context/{contextId}/helm/releases" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Releases</a>
+      <a href="/context/{contextId}/helm/charts" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">Charts</a>
     </SidebarGroup>
 
     <SidebarGroup title="Custom Resources" icon={Database} bind:open={groups.custom}>
-      <a
-        href="/cluster/{clusterId}/crd"
-        class="block px-3 py-1.5 rounded-md hover:bg-bg-popover text-sm"
-        >CRDs</a
-      >
+      <a href="/context/{contextId}/crd" class="block rounded-md px-3 py-1.5 text-sm hover:bg-bg-popover">CRDs</a>
     </SidebarGroup>
   </nav>
 </aside>

@@ -5,6 +5,8 @@
   import Input from "$lib/components/ui/Input.svelte";
   import { X, FileText, Folder, Loader2, Image as ImageIcon, Upload } from "lucide-svelte";
   import { clustersStore } from "$lib/stores/clusters.svelte";
+  import { contextsStore } from "$lib/stores/contexts.svelte";
+  import { usersStore } from "$lib/stores/users.svelte";
 
   let { isOpen = $bindable(), onClose } = $props<{
     isOpen: boolean;
@@ -23,6 +25,7 @@
     source_file: string;
     display_name: string;
     icon: string;
+    icon_ring_color: string;
   }
 
   let discoveredContexts = $state<DiscoveredContext[]>([]);
@@ -53,6 +56,7 @@
         ...ctx,
         display_name: ctx.context_name,
         icon: "🌐",
+        icon_ring_color: "#3b82f6",
       }));
 
       // Select all by default
@@ -91,6 +95,7 @@
         ...ctx,
         display_name: ctx.context_name,
         icon: "🌐",
+        icon_ring_color: "#3b82f6",
       }));
 
       // Select all by default
@@ -123,6 +128,13 @@
     const ctx = discoveredContexts.find((c) => c.context_name === contextName);
     if (ctx) {
       ctx.icon = newIcon;
+    }
+  }
+
+  function updateRingColor(contextName: string, color: string) {
+    const ctx = discoveredContexts.find((c) => c.context_name === contextName);
+    if (ctx) {
+      ctx.icon_ring_color = color;
     }
   }
 
@@ -161,20 +173,19 @@
       );
 
       for (const ctx of toImport) {
-        await invoke("import_add_cluster", {
-          name: ctx.display_name,
+        await invoke("import_add_context", {
+          displayName: ctx.display_name,
           contextName: ctx.context_name,
           sourceFile: ctx.source_file,
           icon: ctx.icon !== "🌐" ? ctx.icon : null,
-          description: null,
-          tags: [],
+          iconRingColor: ctx.icon_ring_color,
         });
       }
 
-      await clustersStore.load();
+      await Promise.all([clustersStore.load(), usersStore.load(), contextsStore.load()]);
       onClose();
     } catch (e) {
-      error = `Failed to import clusters: ${e}`;
+      error = `Failed to import contexts: ${e}`;
       console.error(e);
     } finally {
       loading = false;
@@ -220,7 +231,7 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b border-border-main">
-        <h2 class="text-lg font-semibold">Import Clusters</h2>
+          <h2 class="text-lg font-semibold">Import Contexts</h2>
         <button
           onclick={handleClose}
           class="p-1 hover:bg-bg-panel rounded transition-colors"
@@ -352,7 +363,7 @@
                   Configure and Import ({selectedContexts.size} of {discoveredContexts.length} selected)
                 </h3>
                 <p class="text-text-muted text-sm mt-1">
-                  Review the discovered contexts, customize their names and icons, then click Import to add them to Kore.
+                   Review the discovered contexts, customize their names, icons, and ring colors, then click Import to add them to Kore.
                 </p>
               </div>
             </div>
@@ -377,12 +388,12 @@
                       <!-- Icon Preview and Input -->
                       <div class="flex flex-col gap-1">
                         <span class="text-xs text-text-muted">Icon</span>
-                        <div class="flex items-center gap-2">
-                          <!-- Icon Preview -->
-                          <div class="w-12 h-12 flex items-center justify-center border border-border-main rounded bg-bg-main overflow-hidden">
-                            {#if ctx.icon}
-                              {#if ctx.icon.startsWith("data:image") || ctx.icon.startsWith("http")}
-                                <img src={ctx.icon} alt="Icon" class="w-full h-full object-contain" />
+                         <div class="flex items-center gap-2">
+                           <!-- Icon Preview -->
+                           <div class="w-12 h-12 flex items-center justify-center rounded bg-bg-main overflow-hidden border-2" style:border-color={ctx.icon_ring_color}>
+                             {#if ctx.icon}
+                               {#if ctx.icon.startsWith("data:image") || ctx.icon.startsWith("http")}
+                                 <img src={ctx.icon} alt="Icon" class="w-full h-full object-contain" />
                               {:else}
                                 <span class="text-2xl">{ctx.icon}</span>
                               {/if}
@@ -402,14 +413,22 @@
                           </button>
                           
                           <!-- Emoji Input (optional) -->
-                          <Input
-                            value={ctx.icon.startsWith("data:") || ctx.icon.startsWith("http") ? "" : ctx.icon}
-                            oninput={(e) => updateIcon(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
-                            placeholder="🌐 or paste URL"
-                            class="w-32 text-sm"
-                          />
-                        </div>
-                      </div>
+                           <Input
+                             value={ctx.icon.startsWith("data:") || ctx.icon.startsWith("http") ? "" : ctx.icon}
+                             oninput={(e) => updateIcon(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
+                             placeholder="🌐 or paste URL"
+                             class="w-32 text-sm"
+                           />
+
+                           <input
+                             type="color"
+                             value={ctx.icon_ring_color}
+                             onchange={(e) => updateRingColor(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
+                             class="h-9 w-11 cursor-pointer rounded border border-border-main bg-bg-panel p-1"
+                             title="Choose ring color"
+                           />
+                         </div>
+                       </div>
                       
                       <div class="flex flex-col gap-1 flex-1">
                         <span class="text-xs text-text-muted">
@@ -427,11 +446,12 @@
                       </div>
                     </div>
 
-                    <div class="text-xs text-text-muted bg-bg-main p-2 rounded">
-                      <div><span class="font-medium">Context:</span> {ctx.context_name}</div>
-                      <div><span class="font-medium">Cluster:</span> {ctx.cluster_name}</div>
-                      <div class="truncate"><span class="font-medium">Source:</span> {ctx.source_file}</div>
-                    </div>
+                     <div class="text-xs text-text-muted bg-bg-main p-2 rounded">
+                       <div><span class="font-medium">Context:</span> {ctx.context_name}</div>
+                       <div><span class="font-medium">Cluster:</span> {ctx.cluster_name}</div>
+                       <div><span class="font-medium">User:</span> {ctx.user_name}</div>
+                       <div class="truncate"><span class="font-medium">Source:</span> {ctx.source_file}</div>
+                     </div>
                   </div>
                 </div>
               </div>
@@ -446,7 +466,7 @@
           {#if selectedContexts.size > 0 && !canImport()}
             <div class="px-4 pt-3 pb-0">
               <div class="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
-                ⚠️ Please provide a display name for all selected clusters before importing
+                 ⚠️ Please provide a display name for all selected contexts before importing
               </div>
             </div>
           {/if}
@@ -460,9 +480,9 @@
                 <Loader2 size={16} class="animate-spin" />
                 Importing...
               {:else}
-                Import {selectedContexts.size} Cluster{selectedContexts.size !== 1 ? "s" : ""}
-              {/if}
-            </Button>
+                 Import {selectedContexts.size} Context{selectedContexts.size !== 1 ? "s" : ""}
+               {/if}
+             </Button>
           </div>
         </div>
       {/if}

@@ -1,4 +1,4 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
 use crate::k8s::client::create_client_for_cluster;
 use crate::k8s::common::{calculate_age, K8sEventInfo};
 use k8s_openapi::api::apps::v1::StatefulSet;
@@ -45,7 +45,7 @@ pub async fn cluster_get_statefulset_details(
     cluster_id: String,
     namespace: String,
     name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<StatefulSetDetails, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let statefulsets: Api<StatefulSet> = Api::namespaced(client, &namespace);
@@ -224,7 +224,7 @@ pub async fn cluster_get_statefulset_pods(
     cluster_id: String,
     namespace: String,
     statefulset_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<StatefulSetPodInfo>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 
@@ -339,7 +339,7 @@ pub async fn cluster_get_statefulset_events(
     cluster_id: String,
     namespace: String,
     statefulset_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<K8sEventInfo>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 

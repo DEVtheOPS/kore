@@ -7,6 +7,7 @@
     id?: string;
     onkeydown?: (e: KeyboardEvent) => void;
     oninput?: (e: Event) => void;
+    [key: string]: any;
   }
 
   let { 

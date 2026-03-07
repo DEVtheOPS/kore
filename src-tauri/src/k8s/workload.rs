@@ -1,4 +1,4 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
 use crate::k8s::client::create_client_for_cluster;
 use crate::k8s::common::{calculate_age, get_created_at, WorkloadSummary};
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
@@ -22,7 +22,7 @@ macro_rules! impl_workload_commands {
         pub async fn $list_fn(
             cluster_id: String,
             namespace: Option<String>,
-            state: State<'_, ClusterManagerState>,
+            state: State<'_, AppDbState>,
         ) -> Result<Vec<WorkloadSummary>, String> {
             let client = create_client_for_cluster(&cluster_id, &state).await?;
             let api: Api<$resource> = if let Some(ns) = namespace {
@@ -43,7 +43,7 @@ macro_rules! impl_workload_commands {
             cluster_id: String,
             namespace: String,
             name: String,
-            state: State<'_, ClusterManagerState>,
+            state: State<'_, AppDbState>,
         ) -> Result<(), String> {
             let client = create_client_for_cluster(&cluster_id, &state).await?;
             let api: Api<$resource> = Api::namespaced(client, &namespace);
@@ -61,7 +61,7 @@ macro_rules! impl_cluster_resource_commands {
         pub async fn $list_fn(
             cluster_id: String,
             _namespace: Option<String>,
-            state: State<'_, ClusterManagerState>,
+            state: State<'_, AppDbState>,
         ) -> Result<Vec<WorkloadSummary>, String> {
             let client = create_client_for_cluster(&cluster_id, &state).await?;
             let api: Api<$resource> = Api::all(client);
@@ -78,7 +78,7 @@ macro_rules! impl_cluster_resource_commands {
             cluster_id: String,
             _namespace: String,
             name: String,
-            state: State<'_, ClusterManagerState>,
+            state: State<'_, AppDbState>,
         ) -> Result<(), String> {
             let client = create_client_for_cluster(&cluster_id, &state).await?;
             let api: Api<$resource> = Api::all(client);

@@ -20,18 +20,26 @@ impl AppDb {
     /// `key` is the hex string retrieved from the OS keychain; it is passed
     /// directly to `PRAGMA key` which SQLCipher uses for AES-256 encryption.
     pub fn new(db_path: PathBuf, key: &str) -> Result<Self, String> {
-        let conn =
-            Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
-
-        // Apply the SQLCipher encryption key immediately after opening.
-        conn.execute_batch(&format!("PRAGMA key = '{}';", key))
-            .map_err(|e| format!("Failed to apply database encryption key: {}", e))?;
-
-        // Enable referential integrity enforcement.
-        conn.execute_batch("PRAGMA foreign_keys = ON;")
-            .map_err(|e| format!("Failed to enable foreign key constraints: {}", e))?;
-
-        create_schema(&conn)?;
+        let conn = match open_encrypted_connection(&db_path, key) {
+            Ok(conn) => conn,
+            Err(initial_error) => {
+                if db_path.exists() {
+                    let backup_path = backup_incompatible_database(&db_path)?;
+                    eprintln!(
+                        "Incompatible encrypted database detected at {:?}; moved backup to {:?}",
+                        db_path, backup_path
+                    );
+                    open_encrypted_connection(&db_path, key).map_err(|retry_error| {
+                        format!(
+                            "{}; retry after backing up incompatible DB also failed: {}",
+                            initial_error, retry_error
+                        )
+                    })?
+                } else {
+                    return Err(initial_error);
+                }
+            }
+        };
 
         Ok(AppDb {
             conn: Mutex::new(conn),
@@ -44,6 +52,45 @@ impl AppDb {
             .lock()
             .map_err(|e| format!("Database lock poisoned: {}", e))
     }
+}
+
+fn open_encrypted_connection(db_path: &PathBuf, key: &str) -> Result<Connection, String> {
+    let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+
+    conn.execute_batch(&format!("PRAGMA key = '{}';", key))
+        .map_err(|e| format!("Failed to apply database encryption key: {}", e))?;
+
+    verify_database_access(&conn)
+        .map_err(|e| format!("Failed to verify encrypted database access: {}", e))?;
+
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|e| format!("Failed to enable foreign key constraints: {}", e))?;
+
+    create_schema(&conn)?;
+
+    Ok(conn)
+}
+
+fn verify_database_access(conn: &Connection) -> Result<(), String> {
+    conn.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+        row.get::<_, i64>(0)
+    })
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+fn backup_incompatible_database(db_path: &PathBuf) -> Result<PathBuf, String> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let backup_path = db_path.with_extension(format!("db.incompatible.{}.bak", timestamp));
+
+    std::fs::rename(db_path, &backup_path)
+        .map_err(|e| format!("Failed to back up incompatible database: {}", e))?;
+
+    Ok(backup_path)
 }
 
 // SAFETY: Connection is Send in rusqlite; Mutex makes it Sync.

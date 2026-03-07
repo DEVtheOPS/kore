@@ -8,6 +8,7 @@
 
 - **Frontend**: Svelte 5 (Runes based reactivity), Tailwind CSS v4, Lucide Icons.
 - **Backend**: Rust (Tauri v2), `kube` crate, `k8s-openapi`.
+- **Package managers**: pnpm (not npm), cargo
 - **State Management**: Svelte 5 `$state` and `$derived` in `.svelte.ts` store files (e.g., `cluster.svelte.ts`, `settings.svelte.ts`).
 - **Styling**: Semantic CSS variables mapped to Tailwind `@theme` (see `src/routes/layout.css`).
 

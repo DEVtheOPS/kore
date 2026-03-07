@@ -1,28 +1,26 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { onMount } from "svelte";
   import ResourceSidebar from "$lib/components/ResourceSidebar.svelte";
   import BottomDrawer from "$lib/components/BottomDrawer.svelte";
-  import { clustersStore } from "$lib/stores/clusters.svelte";
-  import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
+  import { activeContextStore } from "$lib/stores/activeCluster.svelte";
+  import { contextsStore, type ContextRecord } from "$lib/stores/contexts.svelte";
   import { headerStore } from "$lib/stores/header.svelte";
-  import type { Cluster } from "$lib/stores/clusters.svelte";
 
   let { children } = $props();
 
-  let cluster = $state<Cluster | null>(null);
+  let context = $state<ContextRecord | null>(null);
   let loading = $state(true);
 
-  const clusterId = $derived($page.params.id);
+  const contextId = $derived($page.params.id);
 
   // Load cluster data when ID changes
   $effect(() => {
-    if (clusterId) {
-      loadCluster(clusterId);
+    if (contextId) {
+      loadContext(contextId);
     }
   });
 
-  async function loadCluster(id: string | undefined) {
+  async function loadContext(id: string | undefined) {
     if (!id) {
       loading = false;
       return;
@@ -30,47 +28,39 @@
     
     loading = true;
     try {
-      cluster = await clustersStore.get(id);
+      context = await contextsStore.get(id);
       
-      if (cluster) {
-        // Update active cluster store
-        await activeClusterStore.setCluster(id);
-        
-        // Update last accessed timestamp
-        await clustersStore.updateLastAccessed(id);
+      if (context) {
+        await activeContextStore.setContext(id);
+        await contextsStore.updateLastAccessed(id);
       }
     } catch (e) {
-      console.error("Failed to load cluster", e);
+      console.error("Failed to load context", e);
     } finally {
       loading = false;
     }
-  }
-
-  function handleNamespaceChange(ns: string) {
-    activeClusterStore.setNamespace(ns);
   }
 </script>
 
 {#if loading}
   <div class="flex items-center justify-center h-full w-full">
-    <div class="text-text-muted">Loading cluster...</div>
+    <div class="text-text-muted">Loading context...</div>
   </div>
-{:else if !cluster}
+{:else if !context}
   <div class="flex items-center justify-center h-full w-full">
     <div class="text-center space-y-2">
-      <h2 class="text-xl font-semibold">Cluster Not Found</h2>
-      <p class="text-text-muted">The cluster you're looking for doesn't exist.</p>
+      <h2 class="text-xl font-semibold">Context Not Found</h2>
+      <p class="text-text-muted">The context you're looking for doesn't exist.</p>
       <a href="/" class="text-primary hover:underline">Go to Overview</a>
     </div>
   </div>
 {:else}
   <div class="flex h-full w-full overflow-hidden">
-    <!-- Resource Sidebar -->
     <ResourceSidebar
-      {cluster}
-      namespaces={activeClusterStore.namespaces}
-      activeNamespace={activeClusterStore.activeNamespace}
-      onNamespaceChange={handleNamespaceChange}
+      {context}
+      namespaces={activeContextStore.namespaces}
+      activeNamespace={activeContextStore.activeNamespace}
+      onNamespaceChange={(ns) => activeContextStore.setNamespace(ns)}
     />
 
     <!-- Main Content Area -->

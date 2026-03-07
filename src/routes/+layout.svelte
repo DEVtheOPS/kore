@@ -2,16 +2,18 @@
   import "./layout.css";
   import IconSidebar from "$lib/components/IconSidebar.svelte";
   import ClusterImportModal from "$lib/components/ClusterImportModal.svelte";
+  import LockScreen from "$lib/components/LockScreen.svelte";
+  import { lockStore } from "$lib/stores/lock.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
-  import { clusterStore } from "$lib/stores/cluster.svelte";
   import { onMount } from "svelte";
 
   let { children } = $props();
 
   let importModalOpen = $state(false);
 
-  onMount(() => {
-    clusterStore.refresh();
+  onMount(async () => {
+    await settingsStore.load();
+    await lockStore.init();
   });
 
   $effect(() => {
@@ -40,6 +42,14 @@
     {@render children()}
   </div>
 </div>
+
+{#if lockStore.initializing}
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-bg-main text-text-main">
+    <div class="text-sm text-text-muted">Preparing secure workspace...</div>
+  </div>
+{:else if lockStore.locked}
+  <LockScreen />
+{/if}
 
 <!-- Import Modal -->
 <ClusterImportModal bind:isOpen={importModalOpen} onClose={closeImportModal} />

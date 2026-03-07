@@ -1,4 +1,5 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
+use crate::k8s::client::create_temp_kubeconfig_for_cluster;
 use serde_json::Value;
 use std::process::Command;
 use tauri::State;
@@ -42,20 +43,6 @@ pub struct HelmAvailability {
     pub message: Option<String>,
 }
 
-fn get_cluster_kubeconfig_and_context(
-    cluster_id: &str,
-    state: &State<'_, ClusterManagerState>,
-) -> Result<(String, String), String> {
-    let manager = state
-        .0
-        .lock()
-        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
-    let cluster = manager
-        .get_cluster(cluster_id)?
-        .ok_or_else(|| format!("Cluster '{}' not found", cluster_id))?;
-    Ok((cluster.config_path, cluster.context_name))
-}
-
 #[tauri::command]
 pub async fn cluster_check_helm_available() -> Result<HelmAvailability, String> {
     let output = Command::new("helm").arg("version").arg("--short").output();
@@ -85,9 +72,10 @@ pub async fn cluster_check_helm_available() -> Result<HelmAvailability, String> 
 #[tauri::command]
 pub async fn cluster_list_helm_releases(
     cluster_id: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<HelmReleaseSummary>, String> {
-    let (kubeconfig, context_name) = get_cluster_kubeconfig_and_context(&cluster_id, &state)?;
+    let (kubeconfig_file, context_name) = create_temp_kubeconfig_for_cluster(&cluster_id, &state).await?;
+    let kubeconfig = kubeconfig_file.path().to_string_lossy().to_string();
 
     let output = Command::new("helm")
         .args([
@@ -175,7 +163,7 @@ pub async fn cluster_list_helm_releases(
 #[tauri::command]
 pub async fn cluster_list_helm_charts(
     _cluster_id: String,
-    _state: State<'_, ClusterManagerState>,
+    _state: State<'_, AppDbState>,
 ) -> Result<Vec<HelmChartSummary>, String> {
     let output = Command::new("helm")
         .args(["search", "repo", "-o", "json"])

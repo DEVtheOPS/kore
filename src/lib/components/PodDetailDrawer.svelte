@@ -3,7 +3,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import { FileText } from 'lucide-svelte';
   import { bottomDrawerStore } from '$lib/stores/bottomDrawer.svelte';
-  import { clusterStore } from '$lib/stores/cluster.svelte';
+  import { activeClusterStore } from '$lib/stores/activeCluster.svelte';
 
   interface ContainerPort {
     name?: string;
@@ -127,7 +127,7 @@
       title: `${containerName}.log`,
       type: 'logs',
       data: {
-        contextName: clusterStore.active,
+        contextName: activeClusterStore.contextName,
         namespace: pod.namespace,
         podName: pod.name,
         containerName: containerName,

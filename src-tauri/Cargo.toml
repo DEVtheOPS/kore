@@ -40,6 +40,7 @@ uuid = { version = "1.20.0", features = ["v4", "serde"] }
 serde_yaml = "0.9.34"
 image = { version = "0.25.9", features = ["png", "jpeg"] }
 base64 = "0.22.1"
+tempfile = "3.24.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
@@ -55,4 +56,3 @@ panic = "abort"   # Higher performance by disabling panic handlers.
 strip = true      # Ensures debug symbols are removed.
 
 [dev-dependencies]
-tempfile = "3.24.0"

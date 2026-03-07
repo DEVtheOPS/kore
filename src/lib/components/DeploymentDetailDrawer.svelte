@@ -219,7 +219,7 @@
     // Get the cluster ID from the current page params
     const clusterId = $page.params.id;
     // Navigate to pods page with query params to auto-open the pod
-    goto(`/cluster/${clusterId}/pods?pod=${encodeURIComponent(pod.name)}&namespace=${encodeURIComponent(pod.namespace)}`);
+    goto(`/context/${clusterId}/pods?pod=${encodeURIComponent(pod.name)}&namespace=${encodeURIComponent(pod.namespace)}`);
   }
 
   // Mock chart data for now

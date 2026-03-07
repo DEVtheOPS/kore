@@ -1,4 +1,4 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
 use crate::k8s::client::{create_client_for_cluster, create_client_for_context};
 use crate::k8s::watcher::WatcherState;
 use futures::{AsyncBufReadExt, StreamExt, TryStreamExt};
@@ -736,7 +736,7 @@ pub async fn start_pod_watch(
 pub async fn cluster_list_pods(
     cluster_id: String,
     namespace: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<PodSummary>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 
@@ -765,7 +765,7 @@ pub async fn cluster_delete_pod(
     cluster_id: String,
     namespace: String,
     pod_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<(), String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
@@ -782,7 +782,7 @@ pub async fn cluster_get_pod_events(
     cluster_id: String,
     namespace: String,
     pod_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<PodEventInfo>, String> {
     use k8s_openapi::api::core::v1::Event;
 
@@ -853,7 +853,7 @@ pub struct LogStreamParams {
 pub async fn cluster_stream_container_logs(
     params: LogStreamParams,
     window: Window,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
     watcher_state: State<'_, WatcherState>,
 ) -> Result<(), String> {
     let LogStreamParams {
@@ -940,7 +940,7 @@ pub async fn cluster_start_pod_watch(
     cluster_id: String,
     namespace: String,
     window: Window,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
     watcher_state: State<'_, WatcherState>,
 ) -> Result<(), String> {
     use kube::runtime::watcher::Config as WatchConfig;

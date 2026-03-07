@@ -62,7 +62,7 @@
     saving = true;
     try {
       await clustersStore.update(cluster.id, {
-        name: name || undefined,
+        displayName: name || undefined,
         icon: icon || null,
         description: description || null,
         tags: tags.length > 0 ? tags : [],
@@ -255,7 +255,7 @@
           <div class="space-y-1 text-sm">
             <div class="flex justify-between">
               <span class="text-text-muted">Context Name:</span>
-              <span class="font-mono">{cluster.context_name}</span>
+              <span class="font-mono">{cluster.name}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-text-muted">Cluster ID:</span>

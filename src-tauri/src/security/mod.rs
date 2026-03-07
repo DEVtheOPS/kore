@@ -32,17 +32,3 @@ fn generate_secure_key() -> String {
     let part2 = uuid::Uuid::new_v4().simple().to_string(); // 32 hex chars
     format!("{}{}", part1, part2) // 64 hex chars = 32 bytes
 }
-
-/// Rotate the DB encryption key. Stores a new key in the keychain.
-/// Note: This does NOT re-encrypt the database — that requires SQLCipher's
-/// `PRAGMA rekey` and is handled separately by the DB layer.
-pub fn rotate_db_key() -> Result<String, String> {
-    let entry = Entry::new(KEYRING_SERVICE, DB_KEY_ACCOUNT)
-        .map_err(|e| format!("Failed to access OS keychain: {}", e))?;
-
-    let new_key = generate_secure_key();
-    entry
-        .set_password(&new_key)
-        .map_err(|e| format!("Failed to update DB key in OS keychain: {}", e))?;
-    Ok(new_key)
-}

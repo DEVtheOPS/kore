@@ -1,4 +1,4 @@
-use crate::cluster_manager::ClusterManagerState;
+use crate::db::AppDbState;
 use crate::k8s::client::create_client_for_cluster;
 use crate::k8s::common::{calculate_age, K8sEventInfo};
 use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet};
@@ -43,7 +43,7 @@ pub async fn cluster_get_deployment_details(
     cluster_id: String,
     namespace: String,
     name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<DeploymentDetails, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let deployments: Api<Deployment> = Api::namespaced(client, &namespace);
@@ -202,7 +202,7 @@ pub async fn cluster_get_deployment_pods(
     cluster_id: String,
     namespace: String,
     deployment_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<DeploymentPodInfo>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 
@@ -328,7 +328,7 @@ pub async fn cluster_get_deployment_replicasets(
     cluster_id: String,
     namespace: String,
     deployment_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<ReplicaSetInfo>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 
@@ -429,7 +429,7 @@ pub async fn cluster_get_deployment_events(
     cluster_id: String,
     namespace: String,
     deployment_name: String,
-    state: State<'_, ClusterManagerState>,
+    state: State<'_, AppDbState>,
 ) -> Result<Vec<K8sEventInfo>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
 

@@ -1,5 +1,4 @@
 use crate::cluster_manager::ClusterManagerState;
-use crate::config;
 use crate::k8s::common::{calculate_age, get_created_at};
 use k8s_openapi::api::core::v1::Namespace;
 use kube::api::{Api, DeleteParams, ListParams};
@@ -17,19 +16,6 @@ pub fn find_kubeconfig_path_for_context(context_name: &str) -> Option<PathBuf> {
     }
     if let Some(home) = dirs::home_dir() {
         paths.push(home.join(".kube").join("config"));
-    }
-
-    // 2. Custom app config directory
-    let app_kube_dir = config::get_kubeconfigs_dir();
-    if app_kube_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(app_kube_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    paths.push(path);
-                }
-            }
-        }
     }
 
     // Check each file
@@ -132,18 +118,6 @@ pub async fn list_contexts() -> Result<Vec<String>, String> {
     }
     if let Some(home) = dirs::home_dir() {
         paths.push(home.join(".kube").join("config"));
-    }
-
-    let app_kube_dir = config::get_kubeconfigs_dir();
-    if app_kube_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(app_kube_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    paths.push(path);
-                }
-            }
-        }
     }
 
     let mut contexts = Vec::new();

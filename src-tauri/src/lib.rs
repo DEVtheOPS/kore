@@ -1,31 +1,59 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod cluster_manager;
 mod config;
+mod db;
 mod image_utils;
 mod import;
 mod input_validation;
 mod k8s;
+mod security;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+// Legacy modules kept temporarily during the refactor (Phase 8 will remove these).
+mod cluster_manager;
+
+use db::AppDbState;
+use std::sync::Arc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Init directories
-    let _ = config::init_directories();
+    // 1. Initialise the ~/.kore/ directory.
+    if let Err(e) = config::init_directories() {
+        eprintln!("Failed to initialise config directories: {}", e);
+        std::process::exit(1);
+    }
 
-    // Initialize cluster manager
-    let db_path = config::get_app_config_dir().join("clusters.db");
-    let cluster_manager = match cluster_manager::ClusterManager::new(db_path) {
-        Ok(manager) => manager,
+    // 2. Retrieve (or generate on first launch) the SQLCipher encryption key
+    //    from the OS keychain.
+    let db_key = match security::get_or_create_db_key() {
+        Ok(key) => key,
         Err(e) => {
-            eprintln!("Failed to initialize cluster manager: {}", e);
+            eprintln!("Failed to obtain database encryption key: {}", e);
             std::process::exit(1);
         }
     };
-    let cluster_manager_state = cluster_manager::ClusterManagerState(std::sync::Arc::new(
+
+    // 3. Open the encrypted database.
+    let db_path = config::get_db_path();
+    let app_db = match db::AppDb::new(db_path, &db_key) {
+        Ok(db) => db,
+        Err(e) => {
+            eprintln!("Failed to initialise database: {}", e);
+            std::process::exit(1);
+        }
+    };
+    let app_db_state = AppDbState(Arc::new(app_db));
+
+    // 4. Legacy cluster manager (kept for backwards compat during refactor).
+    let legacy_db_path = config::get_app_config_dir().join("clusters_legacy.db");
+    let cluster_manager = match cluster_manager::ClusterManager::new(legacy_db_path) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Warning: Failed to initialise legacy cluster manager: {}", e);
+            // Don't exit — legacy manager is not critical for new architecture.
+            // Create a dummy in-memory manager so the app still starts.
+            cluster_manager::ClusterManager::new(std::path::PathBuf::from(":memory:"))
+                .expect("In-memory SQLite should always succeed")
+        }
+    };
+    let cluster_manager_state = cluster_manager::ClusterManagerState(Arc::new(
         std::sync::Mutex::new(cluster_manager),
     ));
 
@@ -36,11 +64,48 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // New encrypted DB state
+        .manage(app_db_state)
+        // Legacy state (kept during refactor)
         .manage(cluster_manager_state)
         .manage(k8s::WatcherState::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            // Legacy k8s commands (deprecated, kept for backwards compatibility)
+            // ── New: Cluster CRUD ────────────────────────────────────────────
+            db::clusters::db_list_clusters,
+            db::clusters::db_get_cluster,
+            db::clusters::db_update_cluster,
+            db::clusters::db_delete_cluster,
+            // ── New: User CRUD ───────────────────────────────────────────────
+            db::users::db_list_users,
+            db::users::db_get_user,
+            db::users::db_update_user,
+            db::users::db_delete_user,
+            // ── New: Context CRUD ────────────────────────────────────────────
+            db::contexts::db_list_contexts,
+            db::contexts::db_list_pinned_contexts,
+            db::contexts::db_get_context,
+            db::contexts::db_update_context,
+            db::contexts::db_update_context_last_accessed,
+            db::contexts::db_pin_context,
+            db::contexts::db_unpin_context,
+            db::contexts::db_reorder_pinned_contexts,
+            db::contexts::db_delete_context,
+            // ── New: Settings ────────────────────────────────────────────────
+            config::settings::settings_get,
+            config::settings::settings_update,
+            // ── New: Security ────────────────────────────────────────────────
+            security::lock::security_biometrics_available,
+            security::lock::security_verify_keychain_access,
+            // ── New: Import (updated) ─────────────────────────────────────────
+            import::import_discover_file,
+            import::import_discover_folder,
+            import::import_add_context,
+            // ── New: Export ───────────────────────────────────────────────────
+            import::export_kubeconfig,
+            import::export_preview,
+            // ── Image processing ──────────────────────────────────────────────
+            image_utils::process_icon_file,
+            // ── Legacy k8s commands (kept during refactor) ───────────────────
             k8s::list_contexts,
             k8s::list_namespaces,
             k8s::list_pods,
@@ -49,7 +114,6 @@ pub fn run() {
             k8s::stream_container_logs,
             k8s::stop_stream_logs,
             k8s::start_pod_watch,
-            // NEW: Cluster-based k8s commands
             k8s::cluster_list_namespaces,
             k8s::cluster_list_namespaces_detailed,
             k8s::cluster_delete_namespace,
@@ -66,7 +130,6 @@ pub fn run() {
             k8s::cluster_apply_resource_yaml,
             k8s::cluster_scale_workload,
             k8s::cluster_restart_workload,
-            // Workload commands
             k8s::cluster_list_deployments,
             k8s::cluster_delete_deployment,
             k8s::cluster_list_statefulsets,
@@ -79,7 +142,6 @@ pub fn run() {
             k8s::cluster_delete_job,
             k8s::cluster_list_cronjobs,
             k8s::cluster_delete_cronjob,
-            // Config & Network & Storage
             k8s::cluster_list_config_maps,
             k8s::cluster_delete_config_map,
             k8s::cluster_list_secrets,
@@ -121,30 +183,13 @@ pub fn run() {
             k8s::cluster_check_helm_available,
             k8s::cluster_list_helm_releases,
             k8s::cluster_list_helm_charts,
-            // Deployment details, pods, and events
             k8s::cluster_get_deployment_details,
             k8s::cluster_get_deployment_pods,
             k8s::cluster_get_deployment_replicasets,
             k8s::cluster_get_deployment_events,
-            // StatefulSet details, pods, and events
             k8s::cluster_get_statefulset_details,
             k8s::cluster_get_statefulset_pods,
             k8s::cluster_get_statefulset_events,
-            // Cluster management commands
-            cluster_manager::db_list_clusters,
-            cluster_manager::db_get_cluster,
-            cluster_manager::db_migrate_legacy_configs,
-            cluster_manager::db_update_cluster,
-            cluster_manager::db_update_last_accessed,
-            cluster_manager::db_delete_cluster,
-            // Import commands
-            import::import_discover_file,
-            import::import_discover_folder,
-            import::import_add_cluster,
-            // Image processing
-            image_utils::process_icon_file,
-            // Legacy config
-            config::import_kubeconfig
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

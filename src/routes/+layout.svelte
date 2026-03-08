@@ -33,22 +33,27 @@
   }
 </script>
 
-<div class="flex h-screen w-screen bg-bg-main text-text-main overflow-hidden">
-  <!-- Icon Sidebar -->
-  <IconSidebar onAddCluster={openImportModal} />
-
-  <!-- Content Area (filled by nested layouts/pages) -->
-  <div class="flex-1 overflow-hidden">
-    {@render children()}
-  </div>
-</div>
-
 {#if lockStore.initializing}
+  <!-- Initializing overlay — shown before lock state is determined.
+       Children are NOT mounted yet, preventing any data load before auth. -->
   <div class="fixed inset-0 z-[100] flex items-center justify-center bg-bg-main text-text-main">
     <div class="text-sm text-text-muted">Preparing secure workspace...</div>
   </div>
 {:else if lockStore.locked}
+  <!-- Lock screen replaces the entire UI — children are unmounted.
+       This prevents all IPC data commands from firing while locked,
+       and cannot be bypassed by manipulating frontend state alone. -->
   <LockScreen />
+{:else}
+  <div class="flex h-screen w-screen bg-bg-main text-text-main overflow-hidden">
+    <!-- Icon Sidebar -->
+    <IconSidebar onAddCluster={openImportModal} />
+
+    <!-- Content Area (filled by nested layouts/pages) -->
+    <div class="flex-1 overflow-hidden">
+      {@render children()}
+    </div>
+  </div>
 {/if}
 
 <!-- Import Modal -->

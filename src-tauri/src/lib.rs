@@ -18,7 +18,9 @@ pub fn run() {
     }
 
     // 2. Retrieve (or generate on first launch) the SQLCipher encryption key
-    //    from the OS keychain.
+    //    from the OS keychain.  The Zeroizing wrapper ensures the key bytes
+    //    are wiped from heap memory when this binding is dropped (after the
+    //    database is open and no longer needs the raw key string).
     let db_key = match security::get_or_create_db_key() {
         Ok(key) => key,
         Err(e) => {
@@ -37,6 +39,7 @@ pub fn run() {
         }
     };
     let app_db_state = AppDbState(Arc::new(app_db));
+    let session_state = security::lock::SessionState::new();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_websocket::init())
@@ -45,8 +48,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        // New encrypted DB state
+        // Managed state
         .manage(app_db_state)
+        .manage(session_state)
         .manage(k8s::WatcherState::default())
         .invoke_handler(tauri::generate_handler![
             // ── New: Cluster CRUD ────────────────────────────────────────────
@@ -73,7 +77,9 @@ pub fn run() {
             config::settings::settings_get,
             config::settings::settings_update,
             // ── New: Security ────────────────────────────────────────────────
+            security::lock::security_lock,
             security::lock::security_verify_keychain_access,
+            security::lock::security_is_locked,
             // ── New: Import (updated) ─────────────────────────────────────────
             import::import_discover_file,
             import::import_discover_folder,

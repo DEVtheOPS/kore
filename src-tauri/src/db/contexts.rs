@@ -4,7 +4,10 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::db::{now_secs, AppDbState};
-use crate::input_validation::{validate_description, validate_tags};
+use crate::input_validation::{
+    validate_description, validate_display_name, validate_icon, validate_icon_ring_color,
+    validate_tags,
+};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +52,9 @@ pub fn create_context(
     description: Option<String>,
     tags: Vec<String>,
 ) -> Result<Context, String> {
+    let display_name = validate_display_name(display_name)?;
+    let icon = validate_icon(icon)?;
+    let icon_ring_color = validate_icon_ring_color(icon_ring_color)?;
     let description = validate_description(description)?;
     let tags = validate_tags(tags)?;
     let tags_json =
@@ -314,14 +320,17 @@ pub fn update_context(
     let mut values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
     if let Some(name) = display_name {
+        let name = validate_display_name(name)?;
         parts.push("display_name = ?".to_string());
         values.push(Box::new(name));
     }
     if let Some(icon_val) = icon {
+        let icon_val = validate_icon(icon_val)?;
         parts.push("icon = ?".to_string());
         values.push(Box::new(icon_val));
     }
     if let Some(ring) = icon_ring_color {
+        let ring = validate_icon_ring_color(ring)?;
         parts.push("icon_ring_color = ?".to_string());
         values.push(Box::new(ring));
     }
@@ -398,14 +407,34 @@ pub fn reorder_pinned_contexts(
     db: &crate::db::AppDb,
     ordered_ids: &[String],
 ) -> Result<(), String> {
+    const MAX_PINNED: usize = 100;
+    if ordered_ids.len() > MAX_PINNED {
+        return Err(format!(
+            "Cannot reorder more than {} pinned contexts at once",
+            MAX_PINNED
+        ));
+    }
+
     let conn = db.lock()?;
+
+    // Wrap in a transaction so a mid-loop failure leaves order consistent.
+    conn.execute_batch("BEGIN")
+        .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+
     for (i, id) in ordered_ids.iter().enumerate() {
         conn.execute(
             "UPDATE contexts SET pin_order = ?1 WHERE id = ?2 AND is_pinned = 1",
             params![i as i64, id],
         )
-        .map_err(|e| format!("Failed to reorder context '{}': {}", id, e))?;
+        .map_err(|e| {
+            let _ = conn.execute_batch("ROLLBACK");
+            format!("Failed to reorder context '{}': {}", id, e)
+        })?;
     }
+
+    conn.execute_batch("COMMIT")
+        .map_err(|e| format!("Failed to commit reorder transaction: {}", e))?;
+
     Ok(())
 }
 

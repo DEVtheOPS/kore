@@ -333,16 +333,63 @@ fn merge_into_existing(
     }
 }
 
+/// Validate that a destination path for kubeconfig export is acceptable.
+///
+/// Rules:
+/// - Parent directory must exist (or be creatable within the user's home dir).
+/// - The resolved canonical parent must be within the user's home directory,
+///   preventing writes to system paths like `/etc` or `/proc`.
+fn validate_export_destination(dest: &Path) -> Result<(), String> {
+    if dest.as_os_str().is_empty() {
+        return Err("Export destination path cannot be empty".to_string());
+    }
+
+    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
+
+    // The file itself may not exist yet; canonicalize the parent instead.
+    let parent = dest.parent().unwrap_or(dest);
+
+    // Create the parent if it doesn't exist yet so canonicalize can resolve it.
+    std::fs::create_dir_all(parent)
+        .map_err(|e| format!("Cannot create destination directory: {}", e))?;
+
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| format!("Cannot resolve export destination: {}", e))?;
+
+    if !canonical_parent.starts_with(&home) {
+        return Err(
+            "Export destination must be within your home directory for security".to_string(),
+        );
+    }
+
+    Ok(())
+}
+
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
 pub fn import_discover_file(path: String) -> Result<Vec<DiscoveredContext>, String> {
-    discover_contexts_in_file(&PathBuf::from(path))
+    // Validate path via the same rules as import_add_context (belt-and-suspenders
+    // on top of the dialog plugin that provides the path).
+    let canonical = crate::config::validate_import_source(&PathBuf::from(&path))?;
+    discover_contexts_in_file(&canonical)
 }
 
 #[tauri::command]
 pub fn import_discover_folder(path: String) -> Result<Vec<DiscoveredContext>, String> {
-    discover_contexts_in_folder(&PathBuf::from(path))
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err("Folder does not exist".to_string());
+    }
+    if !p.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+    // Canonicalize to resolve any symlinks before traversal.
+    let canonical = p
+        .canonicalize()
+        .map_err(|e| format!("Cannot resolve folder path: {}", e))?;
+    discover_contexts_in_folder(&canonical)
 }
 
 /// Import a single context (and its cluster + user if not already present) into
@@ -357,13 +404,15 @@ pub async fn import_add_context(
     state: State<'_, AppDbState>,
 ) -> Result<String, String> {
     let source_path = PathBuf::from(&source_file);
-    crate::config::validate_import_source(&source_path)?;
+    // validate_import_source returns the canonicalized path — use it for all
+    // subsequent reads to close the TOCTOU gap between validation and use.
+    let canonical_source = crate::config::validate_import_source(&source_path)?;
 
     let db = state.0.clone();
 
-    // Extract JSON config blobs from the source kubeconfig.
+    // Extract JSON config blobs from the canonical source path.
     let (cluster_json, user_json, context_json) =
-        extract_config_blobs(&source_path, &context_name)?;
+        extract_config_blobs(&canonical_source, &context_name)?;
 
     // Determine the kubeconfig names from the JSON blobs (for deduplication).
     let cluster_name: String = {
@@ -419,6 +468,9 @@ pub async fn export_kubeconfig(
     let db = &state.0;
     let dest_path = PathBuf::from(&destination);
 
+    // Validate destination is within the user's home directory.
+    validate_export_destination(&dest_path)?;
+
     // Build the export kubeconfig from selected contexts.
     let export_kb =
         build_export_kubeconfig(db, &context_ids, current_context.as_deref(), &conflicts)?;
@@ -461,6 +513,9 @@ pub async fn export_preview(
 ) -> Result<ExportPreview, String> {
     let db = &state.0;
     let dest_path = PathBuf::from(&destination);
+
+    // Validate destination even during preview to surface path errors early.
+    validate_export_destination(&dest_path)?;
 
     let mut cluster_names = std::collections::HashSet::new();
     let mut user_names = std::collections::HashSet::new();

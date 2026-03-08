@@ -25,7 +25,7 @@
   }
 </script>
 
-<div class="max-w-3xl space-y-6 p-6">
+<div class="max-w-3xl space-y-6 p-6 overflow-y-auto h-full">
   <div class="space-y-2">
     <h1 class="text-2xl font-bold">Settings</h1>
     <p class="text-text-muted">
@@ -120,19 +120,17 @@
             </div>
           {/if}
 
-          <label class="flex items-start gap-3 rounded-xl border border-border-subtle bg-bg-main/50 px-4 py-3">
+          <label class="flex items-start gap-3 rounded-xl border border-border-subtle bg-bg-main/30 px-4 py-3 opacity-60 cursor-not-allowed">
             <input
               type="checkbox"
-              checked={settingsStore.value.requireBiometric}
-              onchange={async (event) => {
-                await settingsStore.setRequireBiometric((event.currentTarget as HTMLInputElement).checked);
-              }}
-              class="mt-0.5 h-4 w-4 rounded border-border-main bg-bg-panel text-primary"
+              disabled
+              class="mt-0.5 h-4 w-4 rounded border-border-main bg-bg-panel text-primary cursor-not-allowed"
             />
             <span>
-              <span class="block text-sm font-medium">Require system auth on unlock</span>
+              <span class="block text-sm font-medium">Require system auth on unlock <span class="text-xs text-text-muted font-normal">(coming soon)</span></span>
               <span class="block text-xs text-text-muted">
-                Saves the preference now; explicit desktop biometric prompts will be wired in a follow-up.
+                Desktop biometric integration (Touch ID / Windows Hello) is not yet implemented.
+                The checkbox is disabled to prevent a false sense of security.
               </span>
             </span>
           </label>

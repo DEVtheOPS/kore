@@ -50,7 +50,8 @@
   <div class="space-y-3 border-b border-border-subtle p-4">
     <div class="flex items-center gap-3 px-1">
       {#if context.icon}
-        {#if context.icon.startsWith('http') || context.icon.startsWith('data:')}
+        {#if context.icon.startsWith('data:image/')}
+          <!-- Only data: URIs are accepted — no external http/https URLs -->
           <img
             src={context.icon}
             alt={context.display_name}

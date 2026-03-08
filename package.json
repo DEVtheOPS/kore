@@ -15,7 +15,8 @@
     "test:unit": "vitest",
     "test:coverage": "vitest run --coverage",
     "tauri": "tauri",
-    "screenshots": "playwright test --config playwright.screenshots.config.ts"
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
+    "playwright-cli": "playwright-cli install --skills"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -25,6 +26,7 @@
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.14",
     "@lezer/highlight": "^1.2.3",
+    "@playwright/cli": "^0.1.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "~2",

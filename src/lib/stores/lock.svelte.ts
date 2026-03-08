@@ -43,10 +43,16 @@ class LockStore {
     }
   }
 
-  lock() {
+  async lock() {
     this.clearTimeout();
     this.locked = true;
     this.error = null;
+    // Notify the backend so it tracks the authoritative lock state.
+    try {
+      await invoke('security_lock');
+    } catch {
+      // Non-fatal — UI lock is still applied; backend call is belt-and-suspenders.
+    }
   }
 
   async unlock() {

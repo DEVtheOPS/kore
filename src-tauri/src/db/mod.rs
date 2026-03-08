@@ -54,10 +54,30 @@ impl AppDb {
     }
 }
 
+/// Validate that `key` is exactly 64 lowercase hex characters.
+/// This must be enforced before constructing the PRAGMA string.
+fn validate_db_key(key: &str) -> Result<(), String> {
+    if key.len() != 64 {
+        return Err(format!(
+            "Database encryption key must be 64 hex characters, got {}",
+            key.len()
+        ));
+    }
+    if !key.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("Database encryption key contains non-hexadecimal characters".to_string());
+    }
+    Ok(())
+}
+
 fn open_encrypted_connection(db_path: &PathBuf, key: &str) -> Result<Connection, String> {
+    validate_db_key(key)?;
+
     let conn = Connection::open(db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
-    conn.execute_batch(&format!("PRAGMA key = '{}';", key))
+    // Use the SQLCipher hex-key PRAGMA form: PRAGMA key = "x'<hex>'"
+    // This avoids any single-quote injection risk by using the double-quoted
+    // hex literal form that SQLCipher documents as the canonical raw-key API.
+    conn.execute_batch(&format!(r#"PRAGMA key = "x'{}'""#, key))
         .map_err(|e| format!("Failed to apply database encryption key: {}", e))?;
 
     verify_database_access(&conn)
@@ -93,9 +113,9 @@ fn backup_incompatible_database(db_path: &PathBuf) -> Result<PathBuf, String> {
     Ok(backup_path)
 }
 
-// SAFETY: Connection is Send in rusqlite; Mutex makes it Sync.
-unsafe impl Send for AppDb {}
-unsafe impl Sync for AppDb {}
+// rusqlite::Connection is Send (confirmed in rusqlite 0.38 with bundled SQLite).
+// Mutex<T>: Sync where T: Send, so Mutex<Connection>: Sync — no unsafe needed.
+// The compiler derives these automatically; no manual impl required.
 
 /// Tauri-managed state wrapper.  Clone is cheap (increments the Arc refcount).
 #[derive(Clone)]

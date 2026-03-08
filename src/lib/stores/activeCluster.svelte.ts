@@ -1,7 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { contextsStore } from './contexts.svelte';
 
-const STORAGE_KEY = 'kore-active-context';
+// Active context is kept in-memory only — no localStorage persistence.
+// The active context is restored from the URL route on navigation,
+// and the backend tracks last_accessed via db_update_context_last_accessed.
+// Persisting to localStorage would expose cluster activity metadata in
+// plaintext outside the encrypted vault.
 
 class ActiveContextStore {
   contextId = $state<string | null>(null);
@@ -19,41 +23,9 @@ class ActiveContextStore {
     return context?.name || null;
   }
 
-  constructor() {
-    this.loadFromStorage();
-  }
-
-  loadFromStorage() {
-    if (typeof localStorage === 'undefined') return;
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        this.contextId = data.contextId || data.clusterId || null;
-        this.activeNamespace = data.activeNamespace || 'all';
-      } catch (e) {
-        console.error('Failed to parse active context', e);
-      }
-    }
-  }
-
-  save() {
-    if (typeof localStorage === 'undefined') return;
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        contextId: this.contextId,
-        activeNamespace: this.activeNamespace,
-      }),
-    );
-  }
-
   async setCluster(contextId: string | null) {
     this.contextId = contextId;
     this.activeNamespace = 'all';
-    this.save();
 
     if (contextId) {
       await this.fetchNamespaces();
@@ -68,7 +40,6 @@ class ActiveContextStore {
 
   setNamespace(namespace: string) {
     this.activeNamespace = namespace;
-    this.save();
   }
 
   async fetchNamespaces() {
@@ -86,7 +57,6 @@ class ActiveContextStore {
 
       if (this.activeNamespace !== 'all' && !this.namespaces.includes(this.activeNamespace)) {
         this.activeNamespace = 'all';
-        this.save();
       }
     } catch (e) {
       console.error('Failed to fetch namespaces', e);

@@ -4,23 +4,50 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::db::{now_secs, AppDbState};
+use crate::input_validation::validate_display_name;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/// A Kore user record (a kubeconfig credential set).
+/// Full user record used internally (includes the raw kubeconfig credential blob).
 ///
 /// `config` is a JSON-serialised `kube::config::NamedAuthInfo` — the verbatim
 /// kubeconfig user entry (name + credentials: token, client cert, exec plugin, etc.).
-/// Users are independent of clusters, matching the kubeconfig spec.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// **Never serialise this struct over the Tauri IPC bridge** — `config` contains
+/// bearer tokens, client certificate private keys, and other credentials.
+/// Use `UserSummary` instead.
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: String,
     pub display_name: String,
-    pub config: String, // JSON NamedAuthInfo blob
+    pub config: String, // JSON NamedAuthInfo blob — SENSITIVE, not sent to frontend
     pub created_at: i64,
     pub updated_at: i64,
-    /// Number of contexts that reference this user (joined on read).
     pub context_count: i64,
+}
+
+/// Redacted user view sent over the Tauri IPC bridge.
+///
+/// The `config` blob (tokens, certs, exec plugins) is intentionally omitted.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserSummary {
+    pub id: String,
+    pub display_name: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub context_count: i64,
+}
+
+impl From<User> for UserSummary {
+    fn from(u: User) -> Self {
+        UserSummary {
+            id: u.id,
+            display_name: u.display_name,
+            created_at: u.created_at,
+            updated_at: u.updated_at,
+            context_count: u.context_count,
+        }
+    }
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
@@ -31,6 +58,8 @@ pub fn create_user(
     display_name: String,
     config: String, // JSON NamedAuthInfo blob from the importer
 ) -> Result<User, String> {
+    let display_name = validate_display_name(display_name)?;
+
     // Basic sanity check that config is valid JSON.
     let _: serde_json::Value =
         serde_json::from_str(&config).map_err(|e| format!("Invalid user config JSON: {}", e))?;
@@ -121,6 +150,7 @@ pub fn get_user(db: &crate::db::AppDb, id: &str) -> Result<Option<User>, String>
 
 /// Update a user's display name.
 pub fn update_user(db: &crate::db::AppDb, id: &str, display_name: String) -> Result<(), String> {
+    let display_name = validate_display_name(display_name)?;
     let now = now_secs();
     let conn = db.lock()?;
     conn.execute(
@@ -173,13 +203,16 @@ pub fn delete_user(db: &crate::db::AppDb, id: &str, force: bool) -> Result<(), S
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn db_list_users(state: State<'_, AppDbState>) -> Result<Vec<User>, String> {
-    list_users(&state.0)
+pub fn db_list_users(state: State<'_, AppDbState>) -> Result<Vec<UserSummary>, String> {
+    list_users(&state.0).map(|v| v.into_iter().map(UserSummary::from).collect())
 }
 
 #[tauri::command]
-pub fn db_get_user(id: String, state: State<'_, AppDbState>) -> Result<Option<User>, String> {
-    get_user(&state.0, &id)
+pub fn db_get_user(
+    id: String,
+    state: State<'_, AppDbState>,
+) -> Result<Option<UserSummary>, String> {
+    get_user(&state.0, &id).map(|opt| opt.map(UserSummary::from))
 }
 
 #[tauri::command]

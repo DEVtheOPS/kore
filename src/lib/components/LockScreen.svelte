@@ -4,7 +4,6 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import { lockStore } from '$lib/stores/lock.svelte';
-  import { settingsStore } from '$lib/stores/settings.svelte';
 </script>
 
 <div class="fixed inset-0 z-[110] flex items-center justify-center bg-[radial-gradient(circle_at_top,_var(--color-primary)_0%,_transparent_38%),linear-gradient(180deg,_var(--bg-main),_var(--bg-surface))] px-6">
@@ -16,11 +15,7 @@
       <div>
         <h2 class="text-xl font-semibold">Kore is locked</h2>
         <p class="text-sm text-text-muted">
-          {#if settingsStore.value.requireBiometric}
-            Unlock protection is enabled. Desktop biometric integration is planned next.
-          {:else}
-            Unlock your secure workspace to continue.
-          {/if}
+          Unlock your secure workspace to continue.
         </p>
       </div>
     </div>
@@ -31,7 +26,7 @@
         <span>Encrypted config vault protection is active.</span>
       </div>
       <div class="mt-2">
-        Lock mode: <span class="text-text-main">{settingsStore.value.lockMode}</span>
+        Your data remains encrypted and protected.
       </div>
     </div>
 
@@ -42,13 +37,7 @@
     {/if}
 
     <Button class="w-full" size="lg" onclick={() => lockStore.unlock()} disabled={lockStore.unlocking}>
-      {#if lockStore.unlocking}
-        Unlocking...
-      {:else if settingsStore.value.requireBiometric}
-        Unlock workspace
-      {:else}
-        Unlock workspace
-      {/if}
+      {lockStore.unlocking ? 'Unlocking...' : 'Unlock workspace'}
     </Button>
   </Card>
 </div>

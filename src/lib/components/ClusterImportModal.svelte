@@ -62,8 +62,8 @@
       // Select all by default
       contexts.forEach((ctx) => selectedContexts.add(ctx.context_name));
     } catch (e) {
-      error = `Failed to import file: ${e}`;
-      console.error(e);
+      console.error('Failed to import file:', e);
+      error = 'Failed to read kubeconfig file. Please ensure it is a valid kubeconfig.';
     } finally {
       loading = false;
     }
@@ -101,8 +101,8 @@
       // Select all by default
       contexts.forEach((ctx) => selectedContexts.add(ctx.context_name));
     } catch (e) {
-      error = `Failed to import folder: ${e}`;
-      console.error(e);
+      console.error('Failed to import folder:', e);
+      error = 'Failed to scan folder. Please ensure it contains valid kubeconfig files.';
     } finally {
       loading = false;
     }
@@ -158,8 +158,8 @@
 
       updateIcon(contextName, processedIcon);
     } catch (e) {
-      console.error("Failed to process icon:", e);
-      error = `Failed to process icon: ${e}`;
+      console.error('Failed to process icon:', e);
+      error = 'Failed to process icon file. Please use a PNG, JPG, or GIF image.';
     }
   }
 
@@ -185,8 +185,8 @@
       await Promise.all([clustersStore.load(), usersStore.load(), contextsStore.load()]);
       onClose();
     } catch (e) {
-      error = `Failed to import contexts: ${e}`;
-      console.error(e);
+      console.error('Failed to import contexts:', e);
+      error = 'Failed to import one or more contexts. Please check that the kubeconfig is valid.';
     } finally {
       loading = false;
     }
@@ -392,7 +392,8 @@
                            <!-- Icon Preview -->
                            <div class="w-12 h-12 flex items-center justify-center rounded bg-bg-main overflow-hidden border-2" style:border-color={ctx.icon_ring_color}>
                              {#if ctx.icon}
-                               {#if ctx.icon.startsWith("data:image") || ctx.icon.startsWith("http")}
+                               {#if ctx.icon.startsWith("data:image/")}
+                                 <!-- Only data: URIs are accepted — no external URLs -->
                                  <img src={ctx.icon} alt="Icon" class="w-full h-full object-contain" />
                               {:else}
                                 <span class="text-2xl">{ctx.icon}</span>
@@ -413,10 +414,10 @@
                           </button>
                           
                           <!-- Emoji Input (optional) -->
-                           <Input
-                             value={ctx.icon.startsWith("data:") || ctx.icon.startsWith("http") ? "" : ctx.icon}
+                            <Input
+                             value={ctx.icon.startsWith("data:image/") ? "" : ctx.icon}
                              oninput={(e) => updateIcon(ctx.context_name, (e.currentTarget as HTMLInputElement).value)}
-                             placeholder="🌐 or paste URL"
+                             placeholder="🌐 emoji"
                              class="w-32 text-sm"
                            />
 

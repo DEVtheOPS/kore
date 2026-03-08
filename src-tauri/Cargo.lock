@@ -2504,6 +2504,7 @@ dependencies = [
  "keyring",
  "kube",
  "notify",
+ "rand 0.8.5",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2519,6 +2520,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

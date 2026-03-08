@@ -4,28 +4,63 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::db::{now_secs, AppDbState};
-use crate::input_validation::{validate_description, validate_tags};
+use crate::input_validation::{
+    validate_description, validate_display_name, validate_icon, validate_tags,
+};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/// A Kore cluster record.
+/// Full cluster record used internally (includes the raw kubeconfig blob).
 ///
 /// `config` is a JSON-serialised `kube::config::NamedCluster` — the verbatim
 /// kubeconfig cluster entry (name + server URL + CA cert, etc.).
 /// Storing the whole entry as a blob means we never lose kubeconfig fields,
 /// and the schema never needs migration as the kubeconfig spec evolves.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// **Never serialise this struct over the Tauri IPC bridge** — `config` contains
+/// CA certificates and other sensitive material.  Use `ClusterSummary` instead.
+#[derive(Debug, Clone)]
 pub struct Cluster {
     pub id: String,
     pub display_name: String,
     pub icon: Option<String>,
     pub description: Option<String>,
     pub tags: String,   // JSON array string e.g. '["prod","eu"]'
-    pub config: String, // JSON NamedCluster blob
+    pub config: String, // JSON NamedCluster blob — SENSITIVE, not sent to frontend
     pub created_at: i64,
     pub updated_at: i64,
-    /// Number of contexts that reference this cluster (joined on read).
     pub context_count: i64,
+}
+
+/// Redacted cluster view sent over the Tauri IPC bridge.
+///
+/// The `config` blob (CA cert + server URL) is intentionally omitted.
+/// The frontend only needs display / navigation fields.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterSummary {
+    pub id: String,
+    pub display_name: String,
+    pub icon: Option<String>,
+    pub description: Option<String>,
+    pub tags: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub context_count: i64,
+}
+
+impl From<Cluster> for ClusterSummary {
+    fn from(c: Cluster) -> Self {
+        ClusterSummary {
+            id: c.id,
+            display_name: c.display_name,
+            icon: c.icon,
+            description: c.description,
+            tags: c.tags,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+            context_count: c.context_count,
+        }
+    }
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
@@ -39,6 +74,8 @@ pub fn create_cluster(
     description: Option<String>,
     tags: Vec<String>,
 ) -> Result<Cluster, String> {
+    let display_name = validate_display_name(display_name)?;
+    let icon = validate_icon(icon)?;
     let description = validate_description(description)?;
     let tags = validate_tags(tags)?;
     let tags_json =
@@ -152,17 +189,16 @@ pub fn update_cluster(
     description: Option<Option<String>>,
     tags: Option<Vec<String>>,
 ) -> Result<(), String> {
-    let now = now_secs();
-    let conn = db.lock()?;
-
-    let mut parts: Vec<String> = vec!["updated_at = ?".to_string()];
-    let mut values: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(now)];
+    let mut parts: Vec<String> = Vec::new();
+    let mut values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
     if let Some(name) = display_name {
+        let name = validate_display_name(name)?;
         parts.push("display_name = ?".to_string());
         values.push(Box::new(name));
     }
     if let Some(icon_val) = icon {
+        let icon_val = validate_icon(icon_val)?;
         parts.push("icon = ?".to_string());
         values.push(Box::new(icon_val));
     }
@@ -179,6 +215,16 @@ pub fn update_cluster(
         values.push(Box::new(json));
     }
 
+    // Nothing to update — return early rather than touching updated_at.
+    if parts.is_empty() {
+        return Ok(());
+    }
+
+    parts.push("updated_at = ?".to_string());
+    let now = now_secs();
+    values.push(Box::new(now));
+
+    let conn = db.lock()?;
     let query = format!("UPDATE clusters SET {} WHERE id = ?", parts.join(", "));
     values.push(Box::new(id.to_string()));
 
@@ -203,13 +249,16 @@ pub fn delete_cluster(db: &crate::db::AppDb, id: &str) -> Result<(), String> {
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn db_list_clusters(state: State<'_, AppDbState>) -> Result<Vec<Cluster>, String> {
-    list_clusters(&state.0)
+pub fn db_list_clusters(state: State<'_, AppDbState>) -> Result<Vec<ClusterSummary>, String> {
+    list_clusters(&state.0).map(|v| v.into_iter().map(ClusterSummary::from).collect())
 }
 
 #[tauri::command]
-pub fn db_get_cluster(id: String, state: State<'_, AppDbState>) -> Result<Option<Cluster>, String> {
-    get_cluster(&state.0, &id)
+pub fn db_get_cluster(
+    id: String,
+    state: State<'_, AppDbState>,
+) -> Result<Option<ClusterSummary>, String> {
+    get_cluster(&state.0, &id).map(|opt| opt.map(ClusterSummary::from))
 }
 
 #[tauri::command]

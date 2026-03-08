@@ -1,11 +1,84 @@
 use std::collections::HashSet;
 
+const MAX_DISPLAY_NAME_LEN: usize = 253;
 const MAX_DESCRIPTION_LEN: usize = 1000;
 const MAX_TAGS_COUNT: usize = 20;
 const MAX_TAG_LEN: usize = 32;
+/// Max icon size: 8 KB (generous for base64-encoded images / emojis).
+const MAX_ICON_BYTES: usize = 8 * 1024;
 
 fn is_allowed_tag_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/')
+}
+
+/// Validate a user-supplied display name (cluster, user, or context).
+pub fn validate_display_name(name: String) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("Display name cannot be empty".to_string());
+    }
+    if trimmed.len() > MAX_DISPLAY_NAME_LEN {
+        return Err(format!(
+            "Display name must be {} characters or fewer",
+            MAX_DISPLAY_NAME_LEN
+        ));
+    }
+    if trimmed.chars().any(|c| c.is_control()) {
+        return Err("Display name contains invalid control characters".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Validate an icon value.
+///
+/// Accepts: data URIs (`data:image/...`), plain text/emoji.
+/// Rejects: external HTTP/HTTPS URLs (tracking / mixed-content risk), oversized values.
+pub fn validate_icon(icon: Option<String>) -> Result<Option<String>, String> {
+    let Some(value) = icon else {
+        return Ok(None);
+    };
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value.len() > MAX_ICON_BYTES {
+        return Err(format!(
+            "Icon value exceeds the {} byte limit",
+            MAX_ICON_BYTES
+        ));
+    }
+    if value.starts_with("http://") || value.starts_with("https://") {
+        return Err(
+            "Icon must be a data URI (data:image/...) or an emoji — external URLs are not allowed"
+                .to_string(),
+        );
+    }
+    Ok(Some(value))
+}
+
+/// Validate a CSS hex color string: `#rgb`, `#rrggbb`, `#rgba`, or `#rrggbbaa`.
+pub fn validate_icon_ring_color(color: Option<String>) -> Result<Option<String>, String> {
+    let Some(value) = color else {
+        return Ok(None);
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if !is_valid_css_hex_color(trimmed) {
+        return Err(format!(
+            "'{}' is not a valid CSS hex color (expected #rgb, #rrggbb, #rgba, or #rrggbbaa)",
+            trimmed
+        ));
+    }
+    Ok(Some(trimmed.to_string()))
+}
+
+fn is_valid_css_hex_color(s: &str) -> bool {
+    if !s.starts_with('#') {
+        return false;
+    }
+    let hex = &s[1..];
+    matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 pub fn validate_description(description: Option<String>) -> Result<Option<String>, String> {

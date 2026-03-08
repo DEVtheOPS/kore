@@ -13,14 +13,22 @@
   // Register YAML language once
   hljs.registerLanguage('yaml', yaml);
 
-  // Highlight the code whenever it changes
+  // Highlight the code whenever it changes.
+  // SECURITY: on highlight failure, escape the raw code before injecting via
+  // {@html} — never place unsanitized cluster YAML directly into the DOM.
   $effect(() => {
     if (code) {
       try {
         highlighted = hljs.highlight(code, { language: 'yaml' }).value;
       } catch (e) {
         console.error('Failed to highlight YAML:', e);
-        highlighted = code;
+        // Escape HTML entities to prevent XSS when falling back to plain text.
+        highlighted = code
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
       }
     }
   });

@@ -70,3 +70,8 @@
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - If push fails, resolve and retry until it succeeds
+
+## A Note To The Agent
+
+We are building this together. When you learn something non-obvious, add it here
+so future changes go faster.

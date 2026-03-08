@@ -20,6 +20,8 @@ test-results/
 # and injected into the docs site by CI. Never commit these.
 /screenshots/
 /screenshot-report/
+/*.png
+/.playwright-cli/
 
 # Dolt database files (added by bd init)
 .dolt/

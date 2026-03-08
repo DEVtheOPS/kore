@@ -16,6 +16,7 @@
   let cluster = $state<Cluster | null>(null);
   let loading = $state(true);
   let saving = $state(false);
+  let error = $state<string | null>(null);
 
   // Form fields
   let name = $state("");
@@ -60,6 +61,7 @@
     if (!cluster) return;
 
     saving = true;
+    error = null;
     try {
       await clustersStore.update(cluster.id, {
         displayName: name || undefined,
@@ -71,6 +73,7 @@
       // Reload cluster to get updated data
       await loadCluster();
     } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
       console.error("Failed to update cluster", e);
     } finally {
       saving = false;
@@ -152,6 +155,11 @@
   </div>
 {:else}
   <div class="max-w-3xl space-y-6">
+    {#if error}
+      <div class="rounded border border-red-500 bg-red-500/10 p-3 text-sm text-red-400">
+        {error}
+      </div>
+    {/if}
     <!-- General Settings -->
     <Card>
       <div class="p-6 space-y-4">
@@ -177,7 +185,7 @@
             <!-- Icon Preview -->
             <div class="flex items-center justify-center w-16 h-16 border border-border-main rounded bg-bg-panel overflow-hidden flex-shrink-0">
               {#if icon}
-                {#if icon.startsWith("data:image") || icon.startsWith("http")}
+                {#if icon.startsWith("data:image/")}
                   <img src={icon} alt="Icon" class="w-full h-full object-contain" />
                 {:else}
                   <span class="text-3xl">{icon}</span>
@@ -194,15 +202,15 @@
                 Upload Image
               </Button>
               
-              <!-- Manual Input (for emoji or URL) -->
+              <!-- Manual Input (for emoji) -->
               <Input
                 id="icon"
                 bind:value={icon}
-                placeholder="🌐 or paste image URL"
+                placeholder="🌐 emoji"
                 class="w-full"
               />
               <p class="text-xs text-text-muted">
-                Upload an image file (auto-resized to 512x512) or enter an emoji/URL
+                Upload an image file (auto-resized to 512x512) or enter an emoji
               </p>
             </div>
           </div>

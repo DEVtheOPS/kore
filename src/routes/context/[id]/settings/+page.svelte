@@ -16,6 +16,7 @@
   let context = $state<ContextRecord | null>(null);
   let loading = $state(true);
   let saving = $state(false);
+  let error = $state<string | null>(null);
 
   let displayName = $state('');
   let icon = $state('');
@@ -67,6 +68,7 @@
   async function handleSave() {
     if (!context) return;
     saving = true;
+    error = null;
     try {
       await contextsStore.update(context.id, {
         displayName,
@@ -76,6 +78,9 @@
         tags,
       });
       await loadContext();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+      console.error('Failed to save context:', e);
     } finally {
       saving = false;
     }
@@ -126,6 +131,11 @@
   </div>
 {:else}
   <div class="max-w-3xl space-y-6">
+    {#if error}
+      <div class="rounded border border-red-500 bg-red-500/10 p-3 text-sm text-red-400">
+        {error}
+      </div>
+    {/if}
     <Card>
       <div class="space-y-4 p-6">
         <h2 class="text-lg font-semibold">General Settings</h2>
@@ -140,7 +150,7 @@
           <div class="flex items-start gap-3">
             <div class="flex h-16 w-16 items-center justify-center rounded-full border-2 bg-bg-panel overflow-hidden" style:border-color={iconRingColor}>
               {#if icon}
-                {#if icon.startsWith('data:image') || icon.startsWith('http')}
+                {#if icon.startsWith('data:image/')}
                   <img src={icon} alt="Icon" class="h-full w-full object-contain" />
                 {:else}
                   <span class="text-3xl">{icon}</span>
@@ -154,7 +164,7 @@
                 <Upload size={16} />
                 Upload Image
               </Button>
-              <Input id="context-icon" bind:value={icon} placeholder="🌐 or paste image URL" class="w-full" />
+              <Input id="context-icon" bind:value={icon} placeholder="🌐 emoji" class="w-full" />
               <div>
                 <label for="ring-color" class="mb-2 block text-sm font-medium">Ring Color</label>
                 <input id="ring-color" type="color" bind:value={iconRingColor} class="h-10 w-14 rounded border border-border-main bg-bg-panel p-1" />

@@ -185,8 +185,11 @@
       await Promise.all([clustersStore.load(), usersStore.load(), contextsStore.load()]);
       onClose();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error('Failed to import contexts:', e);
-      error = 'Failed to import one or more contexts. Please check that the kubeconfig is valid.';
+      error = msg.includes('Icon') || msg.includes('icon') 
+        ? `Failed to import: ${msg}`
+        : 'Failed to import one or more contexts. Please check that the kubeconfig is valid.';
     } finally {
       loading = false;
     }

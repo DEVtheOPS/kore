@@ -1,0 +1,23 @@
+docs/ROADMAP.md
+  s_bffc71cc25d601::t_d8d591c3d0bf2e 1-31
+AGENTS.md
+  s_bffc71cc25d601::t_0291c98e0e5f36 46,48,50-52,56-57,59-65,73-74,79
+CHANGELOG.md
+  s_bffc71cc25d601::t_4dc83ed496afad 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "b745b544f3ef8026fb33d1d6f7b6e17601bec298",
+  "prompts": {},
+  "sessions": {
+    "s_bffc71cc25d601": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f8313059cffe9aINkMxL03L57Q",
+        "model": "anthropic.claude-fable-5-1"
+      },
+      "human_author": "Marc Seiler <mseiler@gmail.com>"
+    }
+  }
+}

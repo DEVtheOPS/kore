@@ -61,7 +61,9 @@ the roadmap or open an issue instead.
 2. **Run quality gates** (if code changed):
    - `bun run check`, `bun run test:unit --run`, `bun run test`
    - `cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`
-3. **Update `CHANGELOG.md`** under `[Unreleased]`.
+3. **Use Conventional Commits** (`feat:`, `fix:`, `chore:`, ...) — release-please
+   generates `CHANGELOG.md`, version bumps, and GitHub releases from them. Never
+   edit `CHANGELOG.md` or version fields by hand.
 4. **PUSH TO REMOTE** — this is MANDATORY:
 
    ```bash

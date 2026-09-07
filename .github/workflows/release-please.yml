@@ -1,34 +1,81 @@
-name: Release
+name: Release Please
+
+# Single release pipeline, consistent with the other DEVtheOPS projects:
+#
+#   1. release-please opens/updates a release PR from Conventional Commits,
+#      bumping package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml,
+#      docs/package.json and CHANGELOG.md.
+#   2. Merging that PR creates a *draft* GitHub release.
+#   3. Signed installers for every platform are built and attached to it.
+#   4. The release is published, and update.json for the in-app updater is
+#      pushed to gh-pages.
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
 
 jobs:
-  create-release:
-    name: Create Release
+  release-please:
+    name: Release Please
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      release_id: ${{ steps.release.outputs.id }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # release-please can't update Cargo.lock for the root crate, so keep it in
+  # sync on the release PR branch after each update.
+  sync-cargo-lock:
+    name: Sync Cargo.lock on release PR
+    needs: release-please
+    if: ${{ needs.release-please.outputs.prs_created == 'true' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Create Release
-        id: create-release
-        uses: softprops/action-gh-release@v2
         with:
-          draft: true
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Update Cargo.lock for the bumped crate version
+        run: cargo update --workspace --manifest-path src-tauri/Cargo.toml
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- src-tauri/Cargo.lock; then
+            echo "Cargo.lock already in sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/Cargo.lock
+          git commit -m "chore: sync Cargo.lock with release version"
+          git push
 
   build:
     name: Build (${{ matrix.name }})
-    needs: create-release
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +103,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tag only exists once the draft is published; build the release commit.
+          ref: ${{ needs.release-please.outputs.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -88,25 +138,25 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
+          releaseId: ${{ needs.release-please.outputs.release_id }}
           args: ${{ matrix.args }}
 
   publish-release:
     name: Publish Release
-    needs: [create-release, build]
+    needs: [release-please, build]
     runs-on: ubuntu-latest
     steps:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update-pages:
     name: Update gh-pages
-    needs: [create-release, build, publish-release]
+    needs: [release-please, publish-release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,7 +170,7 @@ jobs:
         run: bun scripts/generate-update-json.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Prepare update file
         run: |

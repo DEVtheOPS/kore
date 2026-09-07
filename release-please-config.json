@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "4de056d2a7e5c696d3fd4e3fb33899cca7d0aff3",
+  "bump-minor-pre-major": true,
+  "draft": true,
+  "packages": {
+    ".": {
+      "changelog-sections": [
+        {
+          "section": "Features",
+          "type": "feat"
+        },
+        {
+          "section": "Bug Fixes",
+          "type": "fix"
+        },
+        {
+          "section": "Performance Improvements",
+          "type": "perf"
+        },
+        {
+          "section": "Code Refactoring",
+          "type": "refactor"
+        },
+        {
+          "section": "Documentation",
+          "type": "docs"
+        },
+        {
+          "hidden": true,
+          "section": "Continuous Integration",
+          "type": "ci"
+        },
+        {
+          "hidden": true,
+          "section": "Build System",
+          "type": "build"
+        },
+        {
+          "hidden": true,
+          "section": "Miscellaneous Chores",
+          "type": "chore"
+        }
+      ],
+      "package-name": "kore",
+      "release-type": "node",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "src-tauri/tauri.conf.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "toml",
+          "path": "src-tauri/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "json",
+          "path": "docs/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}

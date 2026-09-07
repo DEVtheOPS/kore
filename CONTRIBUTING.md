@@ -74,9 +74,11 @@ We heavily utilize AI in the development of Kore. If you are using an AI agent:
 1. **Code Style**:
     - **Rust**: Run `cargo fmt` and `cargo clippy`.
     - **TypeScript**: Run `bun run check` (svelte-check) and `bun run lint`.
-2. **Commits**: We use [Conventional Commits](https://www.conventionalcommits.org/).
-    - `feat: add awesome feature`
-    - `fix: resolve crash on startup`
+2. **Commits**: We use [Conventional Commits](https://www.conventionalcommits.org/). They drive
+   [release-please](https://github.com/googleapis/release-please), which generates the changelog,
+   version bumps, and GitHub releases — so the type and description matter.
+    - `feat: add awesome feature` (minor release)
+    - `fix: resolve crash on startup` (patch release)
     - `docs: update readme`
 3. **Pull Requests**:
     - Describe your changes clearly.

@@ -103,8 +103,9 @@ Kore uses GitHub Actions for automated testing and releases.
 ### Workflows
 
 - **`test.yml`**: Runs on PRs and pushes to `main`. Performs linting, type checking, and tests on all platforms.
-- **`release.yml`**: Triggered on tag pushes (`v*`). Builds signed binaries for all platforms and creates a GitHub release.
-- **`pages.yml`**: Deploys the landing page and update manifest to GitHub Pages.
+- **`release-please.yml`**: Runs on every push to `main`. Maintains a release PR from [Conventional Commits](https://www.conventionalcommits.org/); merging it creates the GitHub release, builds signed installers for every platform, publishes the release, and updates the auto-updater manifest on GitHub Pages.
+- **`deploy-docs.yml`** / **`screenshots.yml`**: Build the docs site and app screenshots for GitHub Pages.
+- **`security.yml`**: Dependency and lint security scans.
 
 ### Setting Up Auto-Updates
 
@@ -164,16 +165,13 @@ The Tauri updater requires signed binaries. To set this up:
 
 ### Creating a Release
 
-1. Update the version in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`
-2. Commit the changes
-3. Create and push a tag:
+Releases are fully automated with [release-please](https://github.com/googleapis/release-please):
 
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+1. Land changes on `main` using Conventional Commit messages (`feat:` → minor bump, `fix:` → patch bump; `feat!:` / `BREAKING CHANGE:` → minor while pre-1.0).
+2. release-please opens (or updates) a **"chore(main): release x.y.z"** PR that bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `docs/package.json`, `src-tauri/Cargo.lock`, and `CHANGELOG.md`.
+3. Merge that PR. The workflow creates the `vX.Y.Z` release, builds and signs installers for all platforms, publishes the release, and pushes `update.json` to `gh-pages`.
 
-The release workflow will automatically build all platforms and publish to GitHub Releases and Pages.
+Never bump versions or edit `CHANGELOG.md` by hand.
 
 ### Running Tests & Coverage
 

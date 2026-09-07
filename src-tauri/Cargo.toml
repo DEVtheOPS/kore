@@ -1,6 +1,6 @@
 [package]
 name = "kore"
-version = "0.1.1"
+version = "0.2.0"
 description = "Kubernetes Orchestration and Resource Explorer"
 authors = ["DEVtheOPS"]
 license = "GPL-3.0-or-later"

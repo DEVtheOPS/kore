@@ -1,0 +1,23 @@
+.github/workflows/release-please.yml
+  s_bffc71cc25d601::t_d22a615424fbbd 13-21,28-32,45,61-88,121,150,183,188,191,193-194,197-201
+src-tauri/tauri.conf.json
+  s_bffc71cc25d601::t_600574709b76d0 45-46
+README.md
+  s_bffc71cc25d601::t_e75925d34fe4ac 172-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "6ea646bb8f528cff2b3ad7cd27b6aa7771604c36",
+  "prompts": {},
+  "sessions": {
+    "s_bffc71cc25d601": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f8313059cffe9aINkMxL03L57Q",
+        "model": "anthropic.claude-fable-5-1"
+      },
+      "human_author": "Marc Seiler <mseiler@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+.github/workflows/release-please.yml
+  s_bffc71cc25d601::t_9d5e801ff33071 8-11,13-15,111,149
+release-please-config.json
+  s_bffc71cc25d601::t_982a65f8cd7386 3,5
+.github/workflows/deploy-docs.yml
+  s_bffc71cc25d601::t_9d5e801ff33071 75-80
+CHANGELOG.md
+  s_bffc71cc25d601::t_31f207f6bcc131 8,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "21f4470b0587f50f3604afde1c3fd847e5251099",
+  "prompts": {},
+  "sessions": {
+    "s_bffc71cc25d601": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f8313059cffe9aINkMxL03L57Q",
+        "model": "anthropic.claude-fable-5-1"
+      },
+      "human_author": "Marc Seiler <mseiler@gmail.com>"
+    }
+  }
+}

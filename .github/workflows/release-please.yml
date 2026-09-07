@@ -119,6 +119,9 @@ jobs:
   build:
     name: Build (${{ matrix.name }})
     needs: target
+    # release-please is skipped on manual dispatch, so opt out of the default
+    # "all transitive needs succeeded" gate and check only the direct need.
+    if: ${{ !cancelled() && needs.target.result == 'success' && needs.target.outputs.tag_name != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -186,6 +189,7 @@ jobs:
   update-pages:
     name: Update gh-pages
     needs: [target, build]
+    if: ${{ !cancelled() && needs.target.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download updater manifest from the release

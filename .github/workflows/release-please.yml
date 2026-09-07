@@ -10,15 +10,26 @@ name: Release Please
 #      the latest release by tag, and draft releases have no tag, which makes
 #      it open another release PR for the same commits.)
 #   3. Signed installers for every platform are built and attached to it.
-#   4. update.json for the in-app updater is pushed to gh-pages. The updater
-#      only sees a release once this step has run, so the short window where
-#      the release page has no assets does not affect existing installs.
+#   4. tauri-action's latest.json (the updater manifest) is published to
+#      gh-pages as update.json. The updater only sees a release once this
+#      step has run, so the short window where the release page has no
+#      assets does not affect existing installs.
+#
+# Manual re-run: dispatch with `tag` set to an existing release tag (e.g.
+# v0.4.0) to rebuild and re-attach the installers for that release without
+# involving release-please. Useful if a build job failed or a release had to
+# be created by hand.
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)build assets for, e.g. v0.4.0. Leave empty to run release-please."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -31,6 +42,7 @@ concurrency:
 jobs:
   release-please:
     name: Release Please
+    if: ${{ github.event.inputs.tag == '' }}
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -45,6 +57,34 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Resolve which release (if any) the build/publish jobs should target, from
+  # either release-please's outputs or the manual `tag` input.
+  target:
+    name: Resolve release target
+    needs: release-please
+    if: ${{ always() && (needs.release-please.outputs.release_created == 'true' || github.event.inputs.tag != '') }}
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+      release_id: ${{ steps.resolve.outputs.release_id }}
+    steps:
+      - name: Resolve
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL_TAG: ${{ github.event.inputs.tag }}
+          RP_TAG: ${{ needs.release-please.outputs.tag_name }}
+          RP_ID: ${{ needs.release-please.outputs.release_id }}
+        run: |
+          if [ -n "$MANUAL_TAG" ]; then
+            id=$(gh api "repos/${{ github.repository }}/releases/tags/$MANUAL_TAG" --jq .id)
+            echo "tag_name=$MANUAL_TAG" >> "$GITHUB_OUTPUT"
+            echo "release_id=$id" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=$RP_TAG" >> "$GITHUB_OUTPUT"
+            echo "release_id=$RP_ID" >> "$GITHUB_OUTPUT"
+          fi
 
   # release-please can't update Cargo.lock for the root crate, so keep it in
   # sync on the release PR branch after each update.
@@ -78,8 +118,7 @@ jobs:
 
   build:
     name: Build (${{ matrix.name }})
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    needs: target
     strategy:
       fail-fast: false
       matrix:
@@ -108,7 +147,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          ref: ${{ needs.target.outputs.tag_name }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -141,31 +180,25 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          releaseId: ${{ needs.release-please.outputs.release_id }}
+          releaseId: ${{ needs.target.outputs.release_id }}
           args: ${{ matrix.args }}
 
   update-pages:
     name: Update gh-pages
-    needs: [release-please, build]
+    needs: [target, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Generate update JSON
-        run: bun scripts/generate-update-json.js
+      - name: Download updater manifest from the release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-
-      - name: Prepare update file
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.target.outputs.tag_name }}
         run: |
           mkdir -p gh-pages-update
-          cp update.json gh-pages-update/
+          # tauri-action generates latest.json (URLs + signatures for every
+          # updater artifact). Serve it from gh-pages as update.json, which is
+          # the endpoint configured in tauri.conf.json.
+          gh release download "$TAG" --repo "${{ github.repository }}" --pattern latest.json --output gh-pages-update/update.json
+          python3 -c 'import json; d=json.load(open("gh-pages-update/update.json")); print("version", d["version"], "platforms", sorted(d["platforms"]))'
 
       - name: Deploy update.json to gh-pages
         uses: peaceiris/actions-gh-pages@v4

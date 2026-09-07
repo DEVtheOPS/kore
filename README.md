@@ -169,7 +169,9 @@ Releases are fully automated with [release-please](https://github.com/googleapis
 
 1. Land changes on `main` using Conventional Commit messages (`feat:` → minor bump, `fix:` → patch bump; `feat!:` / `BREAKING CHANGE:` → minor while pre-1.0).
 2. release-please opens (or updates) a **"chore(main): release x.y.z"** PR that bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `docs/package.json`, `src-tauri/Cargo.lock`, and `CHANGELOG.md`.
-3. Merge that PR. The workflow creates the `vX.Y.Z` release, builds and signs installers for all platforms, publishes the release, and pushes `update.json` to `gh-pages`.
+3. Merge that PR. The workflow creates the `vX.Y.Z` release, builds and signs installers for all platforms, attaches them, and publishes the updater manifest (`latest.json` from tauri-action) to `gh-pages` as `update.json`.
+
+If a build fails or a release had to be created by hand, re-run the **Release Please** workflow via *Run workflow* with `tag` set to the release tag (e.g. `v0.4.0`) to rebuild and re-attach the assets.
 
 Never bump versions or edit `CHANGELOG.md` by hand.
 

@@ -69,16 +69,16 @@ End-to-end tests for the user interface.
 
 ```bash
 # Run all E2E tests
-pnpm test
+bun run test
 
 # Run with UI
-pnpm test:ui
+bun run test:ui
 
 # Run specific test file
-pnpm test tests/01-layout-navigation.spec.ts
+bun run test tests/01-layout-navigation.spec.ts
 
 # Run in headed mode (see browser)
-pnpm test --headed
+bun run test --headed
 ```
 
 #### Test Suites:
@@ -210,15 +210,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 8
+          bun-version-file: package.json
       - name: Install dependencies
-        run: pnpm install
+        run: bun install
       - name: Install Playwright
-        run: npx playwright install chromium
+        run: bunx playwright install chromium
       - name: Run E2E tests
-        run: pnpm test
+        run: bun run test
 ```
 
 ## Coverage Reports
@@ -260,10 +260,10 @@ This three-tiered approach ensures:
 cd src-tauri && cargo test
 
 # Frontend tests
-pnpm test
+bun run test
 
 # Type checking
-pnpm run check
+bun run check
 ```
 
 All tests should pass before merging code! 🧪✅

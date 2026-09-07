@@ -8,7 +8,7 @@ Kore is an open-source Kubernetes IDE built with **Tauri v2** (Rust) and **Svelt
 
 Before you start, ensure you have the following installed:
 
-- **Node.js** (v20+) & **pnpm**
+- **Bun** (v1.3+)
 - **Rust** (Stable)
 - **Docker** (Optional, for local Kubernetes testing)
 
@@ -18,7 +18,7 @@ Before you start, ensure you have the following installed:
 2. **Install Frontend Dependencies**:
 
     ```bash
-    pnpm install
+    bun install
     ```
 
 3. **Install Backend Dependencies**:
@@ -32,7 +32,7 @@ Before you start, ensure you have the following installed:
 4. **Run Development Server**:
 
     ```bash
-    pnpm tauri dev
+    bun run tauri dev
     ```
 
 ## 🏗️ Project Structure
@@ -49,9 +49,9 @@ Before you start, ensure you have the following installed:
 
 We value stability. Please run tests before submitting a PR.
 
-- **Frontend Unit Tests**: `pnpm test:unit`
-- **Frontend Coverage**: `pnpm test:coverage`
-- **E2E Tests**: `pnpm test` (Playwright)
+- **Frontend Unit Tests**: `bun run test:unit`
+- **Frontend Coverage**: `bun run test:coverage`
+- **E2E Tests**: `bun run test` (Playwright)
 - **Backend Tests**: `cd src-tauri && cargo test`
 
 ## 🤖 Contributing with AI Agents (Cursor, Windsurf, etc.)
@@ -73,7 +73,7 @@ We heavily utilize AI in the development of Kore. If you are using an AI agent:
 
 1. **Code Style**:
     - **Rust**: Run `cargo fmt` and `cargo clippy`.
-    - **TypeScript**: Run `pnpm check` (svelte-check) and `pnpm lint`.
+    - **TypeScript**: Run `bun run check` (svelte-check) and `bun run lint`.
 2. **Commits**: We use [Conventional Commits](https://www.conventionalcommits.org/).
     - `feat: add awesome feature`
     - `fix: resolve crash on startup`

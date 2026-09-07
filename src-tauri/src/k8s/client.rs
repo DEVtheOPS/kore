@@ -1,78 +1,14 @@
 use crate::cluster_manager::ClusterManagerState;
-use crate::config;
 use crate::k8s::common::{calculate_age, get_created_at};
 use k8s_openapi::api::core::v1::Namespace;
-use kube::api::{Api, DeleteParams, ListParams};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use kube::api::{Api, DeleteParams, ListParams, PostParams};
 use kube::config::Kubeconfig;
 use kube::{Client, Config};
 use std::path::PathBuf;
 use tauri::State;
 
-// Helper to find which file contains the context
-pub fn find_kubeconfig_path_for_context(context_name: &str) -> Option<PathBuf> {
-    // 1. Standard locations
-    let mut paths = vec![];
-    if let Ok(p) = std::env::var("KUBECONFIG") {
-        paths.push(PathBuf::from(p));
-    }
-    if let Some(home) = dirs::home_dir() {
-        paths.push(home.join(".kube").join("config"));
-    }
-
-    // 2. Custom app config directory
-    let app_kube_dir = config::get_kubeconfigs_dir();
-    if app_kube_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(app_kube_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    paths.push(path);
-                }
-            }
-        }
-    }
-
-    // Check each file
-    for path in paths {
-        if path.exists() {
-            if let Ok(config) = Kubeconfig::read_from(&path) {
-                for ctx in config.contexts {
-                    if ctx.name == context_name {
-                        return Some(path);
-                    }
-                }
-            }
-        }
-    }
-
-    None
-}
-
-// Helper to create client
-pub async fn create_client_for_context(context_name: &str) -> Result<Client, String> {
-    let config_path = find_kubeconfig_path_for_context(context_name).ok_or_else(|| {
-        format!(
-            "Context '{}' not found in any kubeconfig file",
-            context_name
-        )
-    })?;
-
-    let kubeconfig = Kubeconfig::read_from(&config_path)
-        .map_err(|e| format!("Failed to read kubeconfig {:?}: {}", config_path, e))?;
-
-    let options = kube::config::KubeConfigOptions {
-        context: Some(context_name.to_string()),
-        ..Default::default()
-    };
-
-    let config = Config::from_custom_kubeconfig(kubeconfig, &options)
-        .await
-        .map_err(|e| format!("Failed to load config: {}", e))?;
-
-    Client::try_from(config).map_err(|e| format!("Failed to create client: {}", e))
-}
-
-// NEW: Helper to create client from cluster ID
+/// Create a kube client for a cluster stored in the cluster database.
 pub async fn create_client_for_cluster(
     cluster_id: &str,
     state: &State<'_, ClusterManagerState>,
@@ -122,69 +58,6 @@ pub async fn create_client_for_cluster(
         .map_err(|e| format!("Failed to load config: {}", e))?;
 
     Client::try_from(config).map_err(|e| format!("Failed to create client: {}", e))
-}
-
-#[tauri::command]
-pub async fn list_contexts() -> Result<Vec<String>, String> {
-    let mut paths = vec![];
-    if let Ok(p) = std::env::var("KUBECONFIG") {
-        paths.push(PathBuf::from(p));
-    }
-    if let Some(home) = dirs::home_dir() {
-        paths.push(home.join(".kube").join("config"));
-    }
-
-    let app_kube_dir = config::get_kubeconfigs_dir();
-    if app_kube_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(app_kube_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    paths.push(path);
-                }
-            }
-        }
-    }
-
-    let mut contexts = Vec::new();
-    for path in paths {
-        if path.exists() {
-            if let Ok(config) = Kubeconfig::read_from(&path) {
-                for ctx in config.contexts {
-                    contexts.push(ctx.name);
-                }
-            }
-        }
-    }
-
-    if contexts.is_empty() {
-        return Ok(vec![]);
-    }
-
-    contexts.sort();
-    contexts.dedup();
-
-    Ok(contexts)
-}
-
-#[tauri::command]
-pub async fn list_namespaces(context_name: String) -> Result<Vec<String>, String> {
-    let client = create_client_for_context(&context_name).await?;
-    let ns_api: Api<Namespace> = Api::all(client);
-    let lp = ListParams::default();
-
-    let list = ns_api
-        .list(&lp)
-        .await
-        .map_err(|e| format!("Failed to list namespaces: {}", e))?;
-
-    let names = list
-        .items
-        .into_iter()
-        .filter_map(|ns| ns.metadata.name)
-        .collect();
-
-    Ok(names)
 }
 
 #[tauri::command]
@@ -258,7 +131,7 @@ pub async fn cluster_list_namespaces_detailed(
         })
         .collect();
 
-    namespaces.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    namespaces.sort_by_key(|ns| std::cmp::Reverse(ns.created_at));
     Ok(namespaces)
 }
 
@@ -275,4 +148,142 @@ pub async fn cluster_delete_namespace(
         .await
         .map_err(|e| format!("Failed to delete namespace '{}': {}", name, e))?;
     Ok(())
+}
+
+/// Validate a Kubernetes namespace name (RFC 1123 DNS label).
+pub fn validate_namespace_name(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("Namespace name cannot be empty".to_string());
+    }
+    if name.len() > 63 {
+        return Err("Namespace name must be 63 characters or fewer".to_string());
+    }
+    let bytes = name.as_bytes();
+    let valid_char = |c: u8| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-';
+    if !bytes.iter().all(|&c| valid_char(c)) {
+        return Err(
+            "Namespace name may only contain lowercase letters, digits, and '-'".to_string(),
+        );
+    }
+    if !bytes[0].is_ascii_alphanumeric() || !bytes[bytes.len() - 1].is_ascii_alphanumeric() {
+        return Err("Namespace name must start and end with an alphanumeric character".to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn cluster_create_namespace(
+    cluster_id: String,
+    name: String,
+    state: State<'_, ClusterManagerState>,
+) -> Result<(), String> {
+    let name = name.trim().to_string();
+    validate_namespace_name(&name)?;
+
+    let client = create_client_for_cluster(&cluster_id, &state).await?;
+    let ns_api: Api<Namespace> = Api::all(client);
+
+    let ns = Namespace {
+        metadata: ObjectMeta {
+            name: Some(name.clone()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    ns_api
+        .create(&PostParams::default(), &ns)
+        .await
+        .map_err(|e| format!("Failed to create namespace '{}': {}", name, e))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_namespace_name;
+
+    #[test]
+    fn accepts_valid_names() {
+        for name in ["default", "kube-system", "team-a1", "a", "abc123"] {
+            assert!(
+                validate_namespace_name(name).is_ok(),
+                "{name} should be valid"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_empty_and_too_long() {
+        assert!(validate_namespace_name("").is_err());
+        assert!(validate_namespace_name(&"a".repeat(64)).is_err());
+        assert!(validate_namespace_name(&"a".repeat(63)).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_characters_and_edges() {
+        for name in [
+            "Prod",
+            "my_ns",
+            "ns.name",
+            "-lead",
+            "trail-",
+            "with space",
+            "ünï",
+        ] {
+            assert!(
+                validate_namespace_name(name).is_err(),
+                "{name} should be invalid"
+            );
+        }
+    }
+}
+
+/// Live tests against the current kubeconfig context. Opt-in via
+/// `KORE_LIVE_TESTS=1 cargo test live_`.
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod live_tests {
+    use super::*;
+
+    fn enabled() -> bool {
+        std::env::var("KORE_LIVE_TESTS")
+            .map(|v| v == "1")
+            .unwrap_or(false)
+    }
+
+    #[tokio::test]
+    async fn live_namespace_create_and_delete_roundtrip() {
+        if !enabled() {
+            return;
+        }
+        let client = kube::Client::try_default().await.expect("kube client");
+        let ns_api: Api<Namespace> = Api::all(client);
+
+        let name = format!("kore-live-test-{}", uuid::Uuid::new_v4().simple());
+        validate_namespace_name(&name).unwrap();
+
+        let ns = Namespace {
+            metadata: ObjectMeta {
+                name: Some(name.clone()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        ns_api
+            .create(&PostParams::default(), &ns)
+            .await
+            .expect("create namespace");
+
+        let fetched = ns_api.get(&name).await.expect("get namespace");
+        assert_eq!(fetched.metadata.name.as_deref(), Some(name.as_str()));
+
+        // The name is 15 + 32 = 47 chars, under the 63 limit
+        assert!(name.len() <= 63);
+
+        ns_api
+            .delete(&name, &DeleteParams::default())
+            .await
+            .expect("delete namespace");
+        eprintln!("created and deleted namespace {name}");
+    }
 }

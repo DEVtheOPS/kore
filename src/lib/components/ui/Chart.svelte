@@ -6,6 +6,8 @@
     type ChartType,
     LineController,
     LineElement,
+    BarController,
+    BarElement,
     PointElement,
     LinearScale,
     CategoryScale,
@@ -19,6 +21,8 @@
   Chart.register(
     LineController,
     LineElement,
+    BarController,
+    BarElement,
     PointElement,
     LinearScale,
     CategoryScale,

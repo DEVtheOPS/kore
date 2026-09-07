@@ -294,6 +294,7 @@
     bind:open={showDrawer}
     bind:deploymentName={selectedDeployment.name}
     bind:namespace={selectedDeployment.namespace}
+    onDeleted={() => loadData()}
   />
 
   <Drawer bind:open={showYamlDrawer} title={yamlTarget ? `Edit YAML: ${yamlTarget.name}` : "Edit YAML"} width="w-[900px]">

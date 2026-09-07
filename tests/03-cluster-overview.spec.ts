@@ -30,22 +30,18 @@ test.describe('Cluster Overview', () => {
   test('should show DataTable when clusters exist', async ({ page }) => {
     await page.goto('/');
 
-    // Check if table or empty state is shown
-    const table = page.locator('[role="table"]');
+    // Should show one or the other once loading finishes
+    const table = page.locator('table');
     const emptyState = page.locator('text=No Clusters Yet');
 
-    const hasTable = await table.isVisible().catch(() => false);
-    const hasEmptyState = await emptyState.isVisible().catch(() => false);
-
-    // Should have one or the other
-    expect(hasTable || hasEmptyState).toBeTruthy();
+    await expect(table.or(emptyState).first()).toBeVisible();
   });
 
   test('should have DataTable with correct columns', async ({ page }) => {
     await page.goto('/');
 
     // If table exists, check columns
-    const table = page.locator('[role="table"]');
+    const table = page.locator('table');
     const hasTable = await table.isVisible().catch(() => false);
 
     if (hasTable) {
@@ -61,7 +57,7 @@ test.describe('Cluster Overview', () => {
   test('should have search functionality', async ({ page }) => {
     await page.goto('/');
 
-    const table = page.locator('[role="table"]');
+    const table = page.locator('table');
     const hasTable = await table.isVisible().catch(() => false);
 
     if (hasTable) {
@@ -74,7 +70,7 @@ test.describe('Cluster Overview', () => {
   test('should have refresh button', async ({ page }) => {
     await page.goto('/');
 
-    const table = page.locator('[role="table"]');
+    const table = page.locator('table');
     const hasTable = await table.isVisible().catch(() => false);
 
     if (hasTable) {
@@ -88,7 +84,7 @@ test.describe('Cluster Overview', () => {
   test('should show column configuration', async ({ page }) => {
     await page.goto('/');
 
-    const table = page.locator('[role="table"]');
+    const table = page.locator('table');
     const hasTable = await table.isVisible().catch(() => false);
 
     if (hasTable) {

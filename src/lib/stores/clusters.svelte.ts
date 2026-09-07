@@ -4,6 +4,8 @@ export interface Cluster {
   id: string;
   name: string;
   context_name: string;
+  /** Absolute path to the extracted single-context kubeconfig on disk. */
+  config_path: string;
   icon?: string;
   description?: string;
   tags: string; // JSON-encoded array

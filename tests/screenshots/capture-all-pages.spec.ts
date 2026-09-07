@@ -4,7 +4,7 @@
  * Uses a comprehensive Tauri IPC mock so every page renders with realistic
  * fake data – no real cluster connection needed.
  *
- * Run:  pnpm screenshots
+ * Run:  bun run screenshots
  * Out:  screenshots/  (project root)
  */
 
@@ -51,6 +51,13 @@ import {
   crds,
   resourceYaml,
   helmAvailability,
+  nodeUsage,
+  podUsage,
+  deploymentDetails,
+  deploymentPods,
+  deploymentReplicaSets,
+  workloadEvents,
+  statefulsetDetails,
 } from './mock-data'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -65,7 +72,18 @@ const MOCK_PAYLOAD = {
   clusters,
   namespaces,
   nodes,
+  nodeUsage,
   pods,
+  podUsage,
+  deploymentDetails,
+  statefulsetDetails,
+  workloadEvents,
+  // Functions are not serialisable across addInitScript; pre-compute for the demo deployment/statefulset.
+  deploymentPodsByName: Object.fromEntries(deployments.map((dep) => [dep.name, deploymentPods(dep.name)])),
+  deploymentReplicaSetsByName: Object.fromEntries(
+    deployments.map((dep) => [dep.name, deploymentReplicaSets(dep.name, dep.namespace)])
+  ),
+  statefulsetPodsByName: Object.fromEntries(statefulsets.map((sts) => [sts.name, deploymentPods(sts.name)])),
   podEvents,
   deployments,
   clusterMetrics,
@@ -139,21 +157,45 @@ async function injectTauriMock(page: Page) {
         // ── Nodes ───────────────────────────────────────────────────────────
         case 'cluster_list_nodes':
           return data.nodes
+        case 'cluster_get_node_usage':
+          return data.nodeUsage
+        case 'cluster_get_pod_usage': {
+          const sel = (args as { labelSelector?: string })?.labelSelector ?? ''
+          const app = sel.match(/(?:^|,)app=([^,]+)/)?.[1]
+          return app ? data.podUsage.filter((u) => u.name.startsWith(app)) : data.podUsage
+        }
 
         // ── Pods ────────────────────────────────────────────────────────────
-        case 'list_pods':
+        case 'cluster_list_pods':
           return data.pods
-        case 'start_pod_watch':
-          // Simulate an initial pod list via a synthetic event shortly after
+        case 'cluster_start_pod_watch':
+        case 'cluster_stop_pod_watch':
           return null
-        case 'get_pod_events':
+        case 'cluster_get_pod_events':
           return data.podEvents
-        case 'delete_pod':
+        case 'cluster_delete_pod':
           return null
 
         // ── Deployments ─────────────────────────────────────────────────────
         case 'cluster_list_deployments':
           return data.deployments
+        case 'cluster_get_deployment_details': {
+          const name = (args as { name: string })?.name
+          return data.deploymentDetails.find((dd) => dd.name === name) ?? data.deploymentDetails[0]
+        }
+        case 'cluster_get_deployment_pods':
+          return data.deploymentPodsByName[(args as { deploymentName: string })?.deploymentName] ?? []
+        case 'cluster_get_deployment_replicasets':
+          return data.deploymentReplicaSetsByName[(args as { deploymentName: string })?.deploymentName] ?? []
+        case 'cluster_get_deployment_events':
+        case 'cluster_get_statefulset_events':
+          return data.workloadEvents
+        case 'cluster_get_statefulset_details': {
+          const name = (args as { name: string })?.name
+          return data.statefulsetDetails.find((sd) => sd.name === name) ?? data.statefulsetDetails[0]
+        }
+        case 'cluster_get_statefulset_pods':
+          return data.statefulsetPodsByName[(args as { statefulsetName: string })?.statefulsetName] ?? []
         case 'cluster_delete_deployment':
         case 'cluster_scale_workload':
         case 'cluster_restart_workload':
@@ -314,8 +356,9 @@ async function injectTauriMock(page: Page) {
         case 'import_add_cluster':
         case 'process_icon_file':
           return null
-        case 'stream_container_logs':
-        case 'stop_stream_logs':
+        case 'cluster_stream_container_logs':
+        case 'cluster_stop_stream_logs':
+        case 'cluster_create_namespace':
           return null
 
         default:

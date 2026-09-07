@@ -57,16 +57,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
+          bun-version-file: package.json
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -85,7 +79,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install dependencies
-        run: pnpm install
+        run: bun install --frozen-lockfile
 
       - name: Build and upload
         uses: tauri-apps/tauri-action@v0
@@ -117,13 +111,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: "20"
+          bun-version-file: package.json
 
       - name: Generate update JSON
-        run: node scripts/generate-update-json.js
+        run: bun scripts/generate-update-json.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}

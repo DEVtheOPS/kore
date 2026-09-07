@@ -44,7 +44,7 @@ test.describe('Layout and Navigation', () => {
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // Check for theme selector
-    await expect(page.locator('label:has-text("Theme")')).toBeVisible();
+    await expect(page.locator('label[for="theme-select"]')).toBeVisible();
   });
 
   test('should navigate back to overview from settings', async ({ page }) => {
@@ -63,15 +63,11 @@ test.describe('Layout and Navigation', () => {
   test('should show empty state when no clusters', async ({ page }) => {
     await page.goto('/');
 
-    // Should show empty state or cluster list
+    // Either the empty state or the clusters table should render once loading finishes
     const emptyState = page.locator('text=No Clusters Yet');
-    const dataTable = page.locator('[role="table"]');
+    const dataTable = page.locator('table');
 
-    // Either empty state or table should be visible
-    const hasEmptyState = await emptyState.isVisible().catch(() => false);
-    const hasTable = await dataTable.isVisible().catch(() => false);
-
-    expect(hasEmptyState || hasTable).toBeTruthy();
+    await expect(emptyState.or(dataTable).first()).toBeVisible();
   });
 
   test('should have responsive layout', async ({ page }) => {
@@ -81,8 +77,8 @@ test.describe('Layout and Navigation', () => {
     const mainContainer = page.locator('div.flex.h-screen.w-screen');
     await expect(mainContainer).toBeVisible();
 
-    // Icon sidebar should be 48px wide (w-12)
-    const iconSidebar = page.locator('aside.w-12');
+    // Icon sidebar should be 64px wide (w-16)
+    const iconSidebar = page.locator('aside.w-16');
     await expect(iconSidebar).toBeVisible();
   });
 

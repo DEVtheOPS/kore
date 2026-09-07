@@ -6,11 +6,6 @@ mod import;
 mod input_validation;
 mod k8s;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Init directories
@@ -39,29 +34,26 @@ pub fn run() {
         .manage(cluster_manager_state)
         .manage(k8s::WatcherState::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            // Legacy k8s commands (deprecated, kept for backwards compatibility)
-            k8s::list_contexts,
-            k8s::list_namespaces,
-            k8s::list_pods,
-            k8s::delete_pod,
-            k8s::get_pod_events,
-            k8s::stream_container_logs,
-            k8s::stop_stream_logs,
-            k8s::start_pod_watch,
-            // NEW: Cluster-based k8s commands
+            // Namespaces
             k8s::cluster_list_namespaces,
             k8s::cluster_list_namespaces_detailed,
+            k8s::cluster_create_namespace,
             k8s::cluster_delete_namespace,
+            // Pods, log streaming, and watches
             k8s::cluster_list_pods,
             k8s::cluster_delete_pod,
             k8s::cluster_get_pod_events,
             k8s::cluster_stream_container_logs,
+            k8s::cluster_stop_stream_logs,
             k8s::cluster_start_pod_watch,
+            k8s::cluster_stop_pod_watch,
+            // Cluster metrics, events, nodes, and mutations
             k8s::cluster_get_metrics,
             k8s::cluster_get_events,
             k8s::cluster_list_events,
             k8s::cluster_list_nodes,
+            k8s::cluster_get_node_usage,
+            k8s::cluster_get_pod_usage,
             k8s::cluster_get_resource_yaml,
             k8s::cluster_apply_resource_yaml,
             k8s::cluster_scale_workload,

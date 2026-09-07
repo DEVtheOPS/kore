@@ -68,6 +68,10 @@ Every resource view respects the **namespace selector** at the top of the resour
 
 Kore remembers your last-used namespace per cluster between sessions.
 
+### Creating and deleting namespaces
+
+The **Namespaces** page lists every namespace with its status and age. Use **Create Namespace** to add a new one (names are validated as RFC 1123 DNS labels before the request is sent), or the row action menu to delete a namespace. The namespace selector refreshes automatically after either operation.
+
 ---
 
 ## Live kubeconfig sync

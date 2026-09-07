@@ -6,6 +6,7 @@ pub mod metrics;
 pub mod mutate;
 pub mod pod;
 pub mod statefulset;
+pub mod usage;
 pub mod watcher;
 pub mod workload;
 
@@ -16,5 +17,6 @@ pub use metrics::*;
 pub use mutate::*;
 pub use pod::*;
 pub use statefulset::*;
+pub use usage::*;
 pub use watcher::*;
 pub use workload::*;

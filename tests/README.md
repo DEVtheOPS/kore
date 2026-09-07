@@ -15,27 +15,27 @@ End-to-end tests for Kore using Playwright.
 
 ### Run all tests
 ```bash
-pnpm test
+bun run test
 ```
 
 ### Run tests with UI
 ```bash
-pnpm test:ui
+bun run test:ui
 ```
 
 ### Run tests in debug mode
 ```bash
-pnpm test:debug
+bun run test:debug
 ```
 
 ### Run specific test file
 ```bash
-pnpm test tests/01-layout-navigation.spec.ts
+bun run test tests/01-layout-navigation.spec.ts
 ```
 
 ### Run in headed mode (see browser)
 ```bash
-pnpm test --headed
+bun run test --headed
 ```
 
 ## Test Coverage

@@ -8,7 +8,7 @@ on:
       - 'src/**'
       - 'tests/screenshots/**'
       - 'package.json'
-      - 'pnpm-lock.yaml'
+      - 'bun.lock'
   workflow_dispatch:
 
 jobs:
@@ -21,37 +21,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+          bun-version-file: package.json
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         id: pw-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
       - name: Install Playwright Chromium
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install chromium --with-deps
+        run: bunx playwright install chromium --with-deps
 
       - name: Install Chromium system deps (cached hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bunx playwright install-deps chromium
 
       - name: Capture screenshots
-        run: pnpm screenshots
+        run: bun run screenshots
 
       - name: Upload screenshots artifact
         uses: actions/upload-artifact@v4

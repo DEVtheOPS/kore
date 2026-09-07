@@ -58,7 +58,7 @@ test.describe('Cluster Layout Structure (with mock cluster)', () => {
     await page.goto('/cluster/test-id');
 
     // Icon sidebar should always be present
-    const iconSidebar = page.locator('aside.w-12');
+    const iconSidebar = page.locator('aside.w-16');
     await expect(iconSidebar).toBeVisible();
 
     // If cluster is found, resource sidebar should also be present

@@ -21,6 +21,7 @@ export const clusters = [
     id: 'demo-cluster-001',
     name: 'acme-production',
     context_name: 'gke_acme-corp_us-east1_production',
+    config_path: '/Users/demo/.kore/kubeconfigs/demo-cluster-001.yaml',
     icon: null,
     description: 'Primary production cluster – US East',
     tags: JSON.stringify(['production', 'gke', 'us-east']),
@@ -31,6 +32,7 @@ export const clusters = [
     id: 'demo-cluster-002',
     name: 'acme-staging',
     context_name: 'gke_acme-corp_eu-west1_staging',
+    config_path: '/Users/demo/.kore/kubeconfigs/demo-cluster-002.yaml',
     icon: null,
     description: 'Staging environment – EU West',
     tags: JSON.stringify(['staging', 'gke', 'eu-west']),
@@ -41,6 +43,7 @@ export const clusters = [
     id: 'demo-cluster-003',
     name: 'local-dev',
     context_name: 'minikube',
+    config_path: '/Users/demo/.kore/kubeconfigs/demo-cluster-003.yaml',
     icon: null,
     description: 'Local development cluster',
     tags: JSON.stringify(['development', 'minikube']),
@@ -125,6 +128,7 @@ export const nodes = [
 
 export const pods = [
   {
+    uid: 'pod-uid-0001',
     name: 'api-server-7d4b8c9f6-xkj2q',
     namespace: 'production',
     status: 'Running',
@@ -184,6 +188,7 @@ export const pods = [
     ],
   },
   {
+    uid: 'pod-uid-0002',
     name: 'frontend-6b5c7d8e9-abc12',
     namespace: 'production',
     status: 'Running',
@@ -222,6 +227,7 @@ export const pods = [
     ],
   },
   {
+    uid: 'pod-uid-0003',
     name: 'worker-5f6g7h8i9-xyz99',
     namespace: 'production',
     status: 'Running',
@@ -257,6 +263,7 @@ export const pods = [
     conditions: [{ type: 'Ready', status: 'True', message: '' }],
   },
   {
+    uid: 'pod-uid-0004',
     name: 'prometheus-0',
     namespace: 'monitoring',
     status: 'Running',
@@ -278,6 +285,7 @@ export const pods = [
     conditions: [{ type: 'Ready', status: 'True', message: '' }],
   },
   {
+    uid: 'pod-uid-0005',
     name: 'fluentd-ds-k9x2m',
     namespace: 'kube-system',
     status: 'Running',
@@ -725,3 +733,104 @@ export const helmAvailability = {
   version: 'v3.13.2',
   message: null,
 }
+
+// ─── Live usage (metrics-server) ─────────────────────────────────────────────
+
+export const nodeUsage = nodes.map((n, i) => ({
+  name: n.name,
+  cpu_millicores: [1850, 2600, 900][i % 3],
+  memory_bytes: [9.5, 11.2, 4.1][i % 3] * 1024 ** 3,
+  timestamp: new Date().toISOString(),
+  window: '20s',
+}))
+
+export const podUsage = pods.map((p, i) => {
+  const cpu = [120, 340, 65, 210, 25][i % 5]
+  const mem = [180, 420, 96, 512, 40][i % 5] * 1024 ** 2
+  return {
+    name: p.name,
+    namespace: p.namespace,
+    cpu_millicores: cpu,
+    memory_bytes: mem,
+    containers: [{ name: 'main', cpu_millicores: cpu, memory_bytes: mem }],
+    timestamp: new Date().toISOString(),
+    window: '15s',
+  }
+})
+
+// ─── Workload detail drawers ─────────────────────────────────────────────────
+
+const iso = (ms: number) => new Date(ms).toISOString()
+
+export const deploymentDetails = deployments.map((dep) => ({
+  name: dep.name,
+  namespace: dep.namespace,
+  uid: `uid-${dep.id}`,
+  created_at: iso(dep.created_at),
+  labels: dep.labels ?? {},
+  annotations: {
+    'deployment.kubernetes.io/revision': '4',
+    'kubectl.kubernetes.io/last-applied-configuration': JSON.stringify({
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      metadata: { name: dep.name, namespace: dep.namespace },
+      spec: { replicas: dep.replicas },
+    }),
+  },
+  replicas_desired: dep.replicas,
+  replicas_updated: dep.replicas,
+  replicas_total: dep.replicas,
+  replicas_available: dep.available_replicas,
+  replicas_unavailable: dep.replicas - dep.available_replicas,
+  strategy_type: 'RollingUpdate',
+  selector: { app: dep.name },
+  conditions: [
+    { condition_type: 'Available', status: 'True', reason: 'MinimumReplicasAvailable' },
+    { condition_type: 'Progressing', status: 'True', reason: 'NewReplicaSetAvailable' },
+  ],
+  images: dep.images,
+}))
+
+export const deploymentPods = (name: string) =>
+  pods
+    .filter((p) => p.name.startsWith(name))
+    .map((p) => ({
+      name: p.name,
+      namespace: p.namespace,
+      status: p.status,
+      age: p.age,
+      ready: `${p.containers}/${p.containers}`,
+      restarts: p.restarts,
+      node: p.node,
+      pod_ip: p.pod_ip,
+    }))
+
+export const deploymentReplicaSets = (name: string, namespace: string) => [
+  { name: `${name}-7d4b8c9f6`, namespace, revision: '4', desired: 3, current: 3, ready: 3, age: age(2, 'd'), images: [], created_at: iso(d(2)) },
+  { name: `${name}-5c6d7e8f9`, namespace, revision: '3', desired: 0, current: 0, ready: 0, age: age(9, 'd'), images: [], created_at: iso(d(9)) },
+]
+
+export const workloadEvents = [
+  { event_type: 'Normal', reason: 'ScalingReplicaSet', message: 'Scaled up replica set api-server-7d4b8c9f6 to 3', count: 1, first_timestamp: iso(d(2)), last_timestamp: iso(d(2)), source: 'deployment-controller' },
+  { event_type: 'Normal', reason: 'ScalingReplicaSet', message: 'Scaled down replica set api-server-5c6d7e8f9 to 0', count: 1, first_timestamp: iso(d(2)), last_timestamp: iso(d(2)), source: 'deployment-controller' },
+]
+
+export const statefulsetDetails = (statefulsets as Array<(typeof statefulsets)[number] & { replicas?: number; ready_replicas?: number }>).map((sts) => ({
+  name: sts.name,
+  namespace: sts.namespace,
+  uid: `uid-${sts.id}`,
+  created_at: iso(sts.created_at),
+  labels: sts.labels ?? {},
+  annotations: {},
+  replicas_desired: sts.replicas ?? 1,
+  replicas_current: sts.replicas ?? 1,
+  replicas_ready: sts.ready_replicas ?? 1,
+  replicas_updated: sts.replicas ?? 1,
+  replicas_available: sts.ready_replicas ?? 1,
+  update_strategy_type: 'RollingUpdate',
+  pod_management_policy: 'OrderedReady',
+  service_name: `${sts.name}-headless`,
+  selector: { app: sts.name },
+  conditions: [],
+  images: sts.images,
+}))

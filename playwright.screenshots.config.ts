@@ -33,8 +33,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    // `pnpm dev` runs just Vite (not Tauri) – see package.json scripts
-    command: 'pnpm dev',
+    // `bun run dev` runs just Vite (not Tauri) – see package.json scripts
+    command: 'bun run dev',
     url: 'http://localhost:1420',
     reuseExistingServer: true,
     timeout: 120_000,

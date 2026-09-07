@@ -7,13 +7,32 @@
   import DataTable, { type Column } from "$lib/components/ui/DataTable.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
   import CodeEditor from "$lib/components/ui/CodeEditor.svelte";
-  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save, Edit } from "lucide-svelte";
+  import { Trash2, Eye, FilePenLine, Scaling, RotateCw, Save, Edit, Plus } from "lucide-svelte";
   import Drawer from "$lib/components/ui/Drawer.svelte";
+  import type { Snippet } from "svelte";
 
-  let { title, listCommand, deleteCommand } = $props<{
+  let {
+    title,
+    listCommand,
+    deleteCommand,
+    onCreate,
+    createLabel = "Create",
+    onDeleted,
+    onRowClick,
+    children: extraContent,
+  } = $props<{
     title: string;
     listCommand: string;
     deleteCommand: string;
+    /** When provided, renders a create button in the toolbar that calls this handler. */
+    onCreate?: () => void;
+    createLabel?: string;
+    /** Called after one or more items were successfully deleted. */
+    onDeleted?: () => void;
+    /** Override the default details drawer (e.g. to open a resource-specific drawer). */
+    onRowClick?: (row: any) => void;
+    /** Optional extra content rendered alongside the list (e.g. modals). Receives a `reload` callback. */
+    children?: Snippet<[{ reload: () => Promise<void> }]>;
   }>();
 
   let data = $state<any[]>([]);
@@ -107,6 +126,10 @@
   }
 
   function handleRowClick(row: any) {
+    if (onRowClick) {
+      onRowClick(row);
+      return;
+    }
     selectedItem = row;
     showDrawer = true;
   }
@@ -137,6 +160,7 @@
       }
       if (successCount > 0) {
         await loadData();
+        onDeleted?.();
       }
       if (failedCount > 0) {
         error = `Failed to delete ${failedCount} ${title.toLowerCase()}.`;
@@ -251,10 +275,7 @@
     const actions: MenuItem[] = [
       {
         label: "View Details",
-        action: () => {
-            selectedItem = row;
-            showDrawer = true;
-        },
+        action: () => handleRowClick(row),
         icon: Eye,
       },
       {
@@ -296,7 +317,8 @@
                 namespace: row.namespace,
                 name: row.name,
               });
-              loadData();
+              await loadData();
+              onDeleted?.();
             } catch (e) {
               console.error("Failed to delete", e);
               error = `Failed to delete ${row.name}.`;
@@ -312,7 +334,19 @@
   }
 </script>
 
-<div class="h-full">
+<div class="h-full flex flex-col">
+    {#if onCreate}
+        <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-text-muted">
+                {data.length} {data.length === 1 ? title.replace(/s$/, "") : title}
+            </p>
+            <Button onclick={onCreate}>
+                <Plus size={16} />
+                {createLabel}
+            </Button>
+        </div>
+    {/if}
+
     {#if error}
         <div class="mb-4 p-3 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
             <span>{error}</span>
@@ -323,6 +357,7 @@
         </div>
     {/if}
 
+    <div class="flex-1 min-h-0">
     <DataTable
         {data}
         {columns}
@@ -365,6 +400,11 @@
             {/if}
         {/snippet}
     </DataTable>
+    </div>
+
+    {#if extraContent}
+        {@render extraContent({ reload: loadData })}
+    {/if}
 
     <Drawer bind:open={showDrawer} title={selectedItem?.name || "Details"}>
         {#snippet headerActions()}

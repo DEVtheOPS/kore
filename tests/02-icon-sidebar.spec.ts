@@ -52,8 +52,8 @@ test.describe('Icon Sidebar', () => {
     await page.locator('button[title="Add Cluster"]').click();
     await expect(page.locator('text=Import Clusters')).toBeVisible();
 
-    // Close modal by clicking X button
-    await page.locator('button:has(svg)').filter({ hasText: '' }).first().click();
+    // Close modal by clicking the X button in the modal header
+    await page.locator('h2:has-text("Import Clusters")').locator('..').locator('button').first().click();
 
     // Modal should be gone
     await expect(page.locator('text=Import Clusters')).not.toBeVisible();
@@ -76,11 +76,9 @@ test.describe('Icon Sidebar', () => {
 
     const iconSidebar = page.locator('aside').first();
 
-    // Should have divider elements
+    // Dividers separate actions / bookmarks / settings (rendered client-side; wait for them)
     const dividers = iconSidebar.locator('div.h-px.bg-border-subtle');
-    const dividerCount = await dividers.count();
-
-    expect(dividerCount).toBeGreaterThanOrEqual(2);
+    await expect(dividers).toHaveCount(2);
   });
 
   test('should have proper icon sizing', async ({ page }) => {

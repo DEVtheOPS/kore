@@ -4,8 +4,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { Download, Trash2, Pause, Play } from 'lucide-svelte';
 
-  interface LogsTabData {
-    contextName: string;
+  export interface LogsTabData {
+    clusterId: string;
     namespace: string;
     podName: string;
     containerName: string;
@@ -22,12 +22,14 @@
 
   async function startStreaming() {
     try {
-      await invoke('stream_container_logs', {
-        contextName: data.contextName,
-        namespace: data.namespace,
-        podName: data.podName,
-        containerName: data.containerName,
-        streamId: data.streamId,
+      await invoke('cluster_stream_container_logs', {
+        params: {
+          cluster_id: data.clusterId,
+          namespace: data.namespace,
+          pod_name: data.podName,
+          container_name: data.containerName,
+          stream_id: data.streamId,
+        },
       });
     } catch (e) {
       console.error('Failed to start log stream:', e);
@@ -62,7 +64,7 @@
 
     // Stop the backend stream
     try {
-      await invoke('stop_stream_logs', { streamId: data.streamId });
+      await invoke('cluster_stop_stream_logs', { streamId: data.streamId });
     } catch (e) {
       console.error('Failed to stop log stream:', e);
     }

@@ -3,7 +3,7 @@ use crate::input_validation::{
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -46,9 +46,79 @@ impl ClusterManager {
         )
         .map_err(|e| format!("Failed to create clusters table: {}", e))?;
 
-        Ok(ClusterManager {
+        let manager = ClusterManager {
             conn: Mutex::new(conn),
-        })
+        };
+        // Best-effort: a failed rewrite must not prevent the app from starting.
+        if let Err(e) = manager.migrate_config_paths() {
+            eprintln!("Warning: failed to migrate legacy config paths: {}", e);
+        }
+        Ok(manager)
+    }
+
+    /// Rewrite stored kubeconfig paths that still point at the pre-rebrand
+    /// `~/.rustylens` directory so they resolve under `~/.kore`.
+    fn migrate_config_paths(&self) -> Result<usize, String> {
+        let legacy = crate::config::get_legacy_app_config_dir();
+        let current = crate::config::get_app_config_dir();
+        self.rewrite_config_path_prefix(&legacy, &current)
+    }
+
+    /// Re-root every `config_path` under `from` to live under `to`.
+    ///
+    /// Path handling is done in Rust with `Path::strip_prefix` (exact,
+    /// case-sensitive, platform-aware separators) rather than SQL `LIKE`, which
+    /// is case-insensitive, treats `_`/`%` as wildcards, and would miss
+    /// Windows backslash paths.
+    fn rewrite_config_path_prefix(&self, from: &Path, to: &Path) -> Result<usize, String> {
+        if from == to {
+            return Ok(0);
+        }
+
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| format!("Database lock poisoned: {}", e))?;
+
+        let rows: Vec<(String, String)> = {
+            let mut stmt = conn
+                .prepare("SELECT id, config_path FROM clusters")
+                .map_err(|e| format!("Failed to read config paths: {}", e))?;
+            let iter = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| format!("Failed to read config paths: {}", e))?;
+            iter.collect::<Result<_, _>>()
+                .map_err(|e| format!("Failed to read config paths: {}", e))?
+        };
+
+        let updates: Vec<(String, String)> = rows
+            .into_iter()
+            .filter_map(|(id, config_path)| {
+                Path::new(&config_path)
+                    .strip_prefix(from)
+                    .ok()
+                    .map(|rest| (id, to.join(rest).to_string_lossy().to_string()))
+            })
+            .collect();
+
+        if updates.is_empty() {
+            return Ok(0);
+        }
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to start migration transaction: {}", e))?;
+        for (id, new_path) in &updates {
+            tx.execute(
+                "UPDATE clusters SET config_path = ?1 WHERE id = ?2",
+                rusqlite::params![new_path, id],
+            )
+            .map_err(|e| format!("Failed to migrate config path: {}", e))?;
+        }
+        tx.commit()
+            .map_err(|e| format!("Failed to commit config path migration: {}", e))?;
+
+        Ok(updates.len())
     }
 
     pub fn add_cluster(
@@ -448,6 +518,99 @@ pub fn db_migrate_legacy_configs(state: State<ClusterManagerState>) -> Result<Ve
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn rewrite_config_path_prefix_migrates_only_matching_rows() {
+        let temp = TempDir::new().unwrap();
+        let manager = ClusterManager::new(temp.path().join("clusters.db")).unwrap();
+
+        let legacy = manager
+            .add_cluster(
+                "legacy".to_string(),
+                "ctx-a".to_string(),
+                PathBuf::from("/home/u/.rustylens/kubeconfigs/a.yaml"),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap();
+        let other = manager
+            .add_cluster(
+                "other".to_string(),
+                "ctx-b".to_string(),
+                PathBuf::from("/elsewhere/.rustylens-backup/b.yaml"),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap();
+
+        let changed = manager
+            .rewrite_config_path_prefix(Path::new("/home/u/.rustylens"), Path::new("/home/u/.kore"))
+            .unwrap();
+        assert_eq!(changed, 1);
+
+        let legacy = manager.get_cluster(&legacy.id).unwrap().unwrap();
+        assert_eq!(legacy.config_path, "/home/u/.kore/kubeconfigs/a.yaml");
+
+        let other = manager.get_cluster(&other.id).unwrap().unwrap();
+        assert_eq!(other.config_path, "/elsewhere/.rustylens-backup/b.yaml");
+
+        // Idempotent: nothing left to migrate.
+        let changed = manager
+            .rewrite_config_path_prefix(Path::new("/home/u/.rustylens"), Path::new("/home/u/.kore"))
+            .unwrap();
+        assert_eq!(changed, 0);
+    }
+
+    #[test]
+    fn rewrite_config_path_prefix_is_exact_and_case_sensitive() {
+        let temp = TempDir::new().unwrap();
+        let manager = ClusterManager::new(temp.path().join("clusters.db")).unwrap();
+
+        // Looks like the legacy prefix under a LIKE match, but is not the same directory.
+        let tricky = manager
+            .add_cluster(
+                "tricky".to_string(),
+                "ctx-c".to_string(),
+                PathBuf::from("/home/u/.RustyLens/kubeconfigs/c.yaml"),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap();
+        let sibling = manager
+            .add_cluster(
+                "sibling".to_string(),
+                "ctx-d".to_string(),
+                PathBuf::from("/home/u/.rustylens2/kubeconfigs/d.yaml"),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap();
+
+        let changed = manager
+            .rewrite_config_path_prefix(Path::new("/home/u/.rustylens"), Path::new("/home/u/.kore"))
+            .unwrap();
+        assert_eq!(changed, 0);
+        assert_eq!(
+            manager
+                .get_cluster(&tricky.id)
+                .unwrap()
+                .unwrap()
+                .config_path,
+            "/home/u/.RustyLens/kubeconfigs/c.yaml"
+        );
+        assert_eq!(
+            manager
+                .get_cluster(&sibling.id)
+                .unwrap()
+                .unwrap()
+                .config_path,
+            "/home/u/.rustylens2/kubeconfigs/d.yaml"
+        );
+    }
 
     #[test]
     fn add_cluster_rejects_invalid_name() {

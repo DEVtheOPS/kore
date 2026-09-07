@@ -415,7 +415,7 @@ pub async fn cluster_list_events(
         })
         .collect();
 
-    summaries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    summaries.sort_by_key(|s| std::cmp::Reverse(s.created_at));
     Ok(summaries)
 }
 
@@ -434,7 +434,7 @@ pub async fn cluster_list_nodes(
         .into_iter()
         .map(map_node_to_summary)
         .collect::<Vec<_>>();
-    list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    list.sort_by_key(|n| std::cmp::Reverse(n.created_at));
     Ok(list)
 }
 

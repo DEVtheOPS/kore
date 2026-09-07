@@ -72,7 +72,7 @@
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Node.js](https://nodejs.org/) & [pnpm](https://pnpm.io/)
+- [Bun](https://bun.sh/) (v1.3+)
 - Docker (optional, for local k8s testing)
 
 ### Setup
@@ -80,20 +80,20 @@
 1. **Install dependencies**:
 2.
    ```bash
-   pnpm install
+   bun install
    cd src-tauri && cargo fetch
    ```
 
 3. **Run Development Server**:
 
    ```bash
-   pnpm tauri dev
+   bun run tauri dev
    ```
 
 ### Building for Production
 
 ```bash
-pnpm tauri build
+bun run tauri build
 ```
 
 ## CI/CD & Releases
@@ -113,7 +113,7 @@ The Tauri updater requires signed binaries. To set this up:
 1. **Generate signing keys**:
 
    ```bash
-   pnpm tauri signer generate -w ~/.tauri/kore.key
+   bun run tauri signer generate -w ~/.tauri/kore.key
 
    ```
    This creates a private key (`kore.key`) and outputs the public key.
@@ -181,13 +181,13 @@ The release workflow will automatically build all platforms and publish to GitHu
 
 ```bash
 # Run Unit Tests
-pnpm test:unit
+bun run test:unit
 
 # Run Unit Tests with Coverage
-pnpm test:coverage
+bun run test:coverage
 
 # Run Playwright E2E Tests
-pnpm test
+bun run test
 ```
 
 **Backend (Rust)**
@@ -222,3 +222,9 @@ Storage structure:
 │   └── ...
 └── bookmarks.json           # Sidebar bookmarks
 ```
+
+If you used a pre-rebrand build that stored data in `~/.rustylens`, Kore migrates that directory to `~/.kore` (and rewrites the stored kubeconfig paths) automatically on first launch.
+
+### Live usage metrics
+
+The Nodes page and the Deployment / StatefulSet detail panels show live CPU and memory usage when [metrics-server](https://github.com/kubernetes-sigs/metrics-server) is installed in the cluster. Without it, Kore shows a notice and everything else keeps working.

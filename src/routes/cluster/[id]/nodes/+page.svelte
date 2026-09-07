@@ -6,6 +6,8 @@
   import Drawer from "$lib/components/ui/Drawer.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import UsageBar from "$lib/components/ui/UsageBar.svelte";
+  import { cpuToMillicores, parseQuantity, formatMillicores, formatBytes, isMetricsUnavailableError } from "$lib/utils/quantity";
 
   interface NodeSummary {
     id: string;
@@ -29,17 +31,52 @@
     created_at: number;
   }
 
-  let data = $state<NodeSummary[]>([]);
+  interface NodeUsage {
+    name: string;
+    cpu_millicores: number;
+    memory_bytes: number;
+    timestamp?: string;
+    window?: string;
+  }
+
+  /** NodeSummary enriched with live usage (when metrics-server is available). */
+  interface NodeRow extends NodeSummary {
+    cpu_usage_millicores: number | null;
+    memory_usage_bytes: number | null;
+    cpu_allocatable_millicores: number | null;
+    memory_allocatable_bytes: number | null;
+  }
+
+  let nodes = $state<NodeSummary[]>([]);
+  let usageByNode = $state<Record<string, NodeUsage>>({});
+  let metricsAvailable = $state<boolean | null>(null);
+  let usageError = $state<string | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let search = $state("");
-  let selectedNode = $state<NodeSummary | null>(null);
+  let selectedNode = $state<NodeRow | null>(null);
   let showDrawer = $state(false);
+  let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  const data = $derived<NodeRow[]>(
+    nodes.map((n) => {
+      const usage = usageByNode[n.name];
+      return {
+        ...n,
+        cpu_usage_millicores: usage?.cpu_millicores ?? null,
+        memory_usage_bytes: usage?.memory_bytes ?? null,
+        cpu_allocatable_millicores: cpuToMillicores(n.allocatable_cpu),
+        memory_allocatable_bytes: parseQuantity(n.allocatable_memory),
+      };
+    })
+  );
 
   const columns: Column[] = [
     { id: "name", label: "Name", sortable: true },
     { id: "status", label: "Status", sortable: true },
     { id: "roles", label: "Roles", sortable: true },
+    { id: "cpu_usage_millicores", label: "CPU", sortable: true },
+    { id: "memory_usage_bytes", label: "Memory", sortable: true },
     { id: "version", label: "Version", sortable: true },
     { id: "internal_ip", label: "Internal IP", sortable: true },
     { id: "age", label: "Age", sortable: true, sortKey: "created_at" },
@@ -55,14 +92,54 @@
     }
   });
 
+  // Refresh live usage periodically while the page is mounted and metrics are available.
+  $effect(() => {
+    if (refreshTimer) clearInterval(refreshTimer);
+    if (metricsAvailable) {
+      refreshTimer = setInterval(loadUsage, 15_000);
+    }
+    return () => {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = null;
+    };
+  });
+
+  async function loadUsage() {
+    if (!activeClusterStore.clusterId) return;
+    try {
+      const usage = await invoke<NodeUsage[]>("cluster_get_node_usage", {
+        clusterId: activeClusterStore.clusterId,
+      });
+      usageByNode = Object.fromEntries(usage.map((u) => [u.name, u]));
+      metricsAvailable = true;
+      usageError = null;
+    } catch (e) {
+      if (isMetricsUnavailableError(e)) {
+        // Metrics API not served by this cluster: stop polling and show the notice.
+        metricsAvailable = false;
+        usageByNode = {};
+        usageError = null;
+      } else {
+        // Transient / RBAC / network failure: keep the last values and keep polling.
+        console.error("Failed to load node usage", e);
+        usageError = `Live usage could not be refreshed: ${e}`;
+        if (metricsAvailable === null) metricsAvailable = true;
+      }
+    }
+  }
+
   async function loadData() {
     if (!activeClusterStore.clusterId) return;
     loading = true;
     error = null;
     try {
-      data = await invoke<NodeSummary[]>("cluster_list_nodes", {
-        clusterId: activeClusterStore.clusterId,
-      });
+      const [nodeList] = await Promise.all([
+        invoke<NodeSummary[]>("cluster_list_nodes", {
+          clusterId: activeClusterStore.clusterId,
+        }),
+        loadUsage(),
+      ]);
+      nodes = nodeList;
     } catch (e) {
       console.error("Failed to load nodes", e);
       error = "Failed to load nodes.";
@@ -77,13 +154,24 @@
     return "warning";
   }
 
-  function openDetails(node: NodeSummary) {
+  function openDetails(node: NodeRow) {
     selectedNode = node;
     showDrawer = true;
   }
 </script>
 
 <div class="h-full">
+  {#if metricsAvailable === false}
+    <div class="mb-4 p-3 bg-bg-panel text-text-muted text-sm rounded-md border border-border-subtle">
+      Live CPU/Memory usage is unavailable: the Metrics API (metrics-server) is not installed in this cluster.
+    </div>
+  {:else if usageError}
+    <div class="mb-4 p-3 bg-warning/10 text-warning text-sm rounded-md border border-warning/20 flex items-center justify-between gap-3">
+      <span>{usageError}</span>
+      <Button variant="ghost" size="sm" onclick={() => (usageError = null)}>Dismiss</Button>
+    </div>
+  {/if}
+
   {#if error}
     <div class="mb-4 p-3 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
       <span>{error}</span>
@@ -101,9 +189,23 @@
     emptyMessage="No nodes found."
     storageKey="nodes"
   >
-    {#snippet children({ column, value })}
+    {#snippet children({ row, column, value })}
       {#if column.id === "status"}
         <Badge variant={getStatusVariant(value)}>{value}</Badge>
+      {:else if metricsAvailable === false && (column.id === "cpu_usage_millicores" || column.id === "memory_usage_bytes")}
+        <span class="text-xs text-text-muted">n/a</span>
+      {:else if column.id === "cpu_usage_millicores"}
+        <UsageBar
+          used={row.cpu_usage_millicores}
+          total={row.cpu_allocatable_millicores}
+          label={`${formatMillicores(row.cpu_usage_millicores)} / ${formatMillicores(row.cpu_allocatable_millicores)}`}
+        />
+      {:else if column.id === "memory_usage_bytes"}
+        <UsageBar
+          used={row.memory_usage_bytes}
+          total={row.memory_allocatable_bytes}
+          label={`${formatBytes(row.memory_usage_bytes)} / ${formatBytes(row.memory_allocatable_bytes)}`}
+        />
       {:else}
         {value}
       {/if}
@@ -123,6 +225,32 @@
           <div><span class="text-text-muted">Kernel:</span> {selectedNode.kernel_version}</div>
           <div><span class="text-text-muted">Age:</span> {selectedNode.age}</div>
         </div>
+
+        {#if selectedNode.cpu_usage_millicores != null || selectedNode.memory_usage_bytes != null}
+          <div>
+            <h3 class="font-semibold mb-2">Live Usage</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3">
+                <span class="w-16 text-text-muted">CPU</span>
+                <UsageBar
+                  class="flex-1"
+                  used={selectedNode.cpu_usage_millicores}
+                  total={selectedNode.cpu_allocatable_millicores}
+                  label={`${formatMillicores(selectedNode.cpu_usage_millicores)} / ${formatMillicores(selectedNode.cpu_allocatable_millicores)}`}
+                />
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="w-16 text-text-muted">Memory</span>
+                <UsageBar
+                  class="flex-1"
+                  used={selectedNode.memory_usage_bytes}
+                  total={selectedNode.memory_allocatable_bytes}
+                  label={`${formatBytes(selectedNode.memory_usage_bytes)} / ${formatBytes(selectedNode.memory_allocatable_bytes)}`}
+                />
+              </div>
+            </div>
+          </div>
+        {/if}
 
         <div>
           <h3 class="font-semibold mb-2">Capacity</h3>

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Live resource usage** via the Kubernetes Metrics API (`metrics.k8s.io/v1beta1`): new `cluster_get_node_usage` and `cluster_get_pod_usage` commands, CPU/Memory usage bars on the Nodes page, and per-pod usage charts in the Deployment and StatefulSet detail panels. Degrades gracefully with a notice when metrics-server is not installed.
+- **StatefulSet detail panel** (`StatefulSetDetailDrawer`) wired to the existing backend commands: details, pods, events, live usage, YAML edit, and delete.
+- **Namespace creation** (`cluster_create_namespace`) with RFC 1123 validation on both the frontend and backend, plus a **Create Namespace** button on the Namespaces page.
+- **Edit tab in the bottom drawer** (`EditTab`) that loads any resource's YAML and applies changes back to the cluster; replaces the "coming soon" placeholder.
+- Pod row actions are now fully functional: **View Details**, **View Logs**, **Edit YAML**, **Delete**.
+- Deployment detail panel **Delete** action (previously a TODO).
+- Cluster Settings **Connection** card showing the context name, kubeconfig path (with copy / reveal-in-file-manager), and cluster ID; replaces the "Proxy Settings" / "Terminal Settings" placeholders.
+- `cluster_stop_pod_watch` and `cluster_stop_stream_logs` commands so watches and log streams are aborted when views unmount.
+- Frontend `quantity` utilities (Kubernetes quantity parsing / formatting) with unit tests; Rust tests for namespace validation, quantity parsing, metrics mapping, and data-directory migration.
+
+### Changed
+
+- **Package manager switched from pnpm to Bun** (`bun.lock`, `bun install`, `bun run …`) across scripts, Tauri config, Playwright configs, Taskfile, GitHub workflows, and docs.
+- Aligned `@tauri-apps/*` npm packages with the Rust crate versions (Tauri 2.11) to remove the version-mismatch warning at startup.
+- The Pods page, pod detail panel, and log streaming now use the cluster-ID based commands. Previously logs were streamed from the *first* kubeconfig context found on disk rather than the selected cluster.
+- Only one pod watch is active at a time; switching namespace or cluster aborts the previous watch instead of leaking it.
+- Pods are keyed by UID in the table so batch selection is unambiguous across namespaces.
+- Playwright E2E tests updated to match the current UI (sidebar width, import-modal copy, settings labels); the screenshot suite now mocks metrics and workload detail commands.
+
+### Removed
+
+- Legacy context-name based backend commands (`list_contexts`, `list_namespaces`, `list_pods`, `delete_pod`, `get_pod_events`, `stream_container_logs`, `stop_stream_logs`, `start_pod_watch`, `greet`) and the unused legacy `Sidebar.svelte` / `clusterStore`.
+- Fake "mock chart data" in the Deployment detail panel.
+
+### Fixed
+
+- Finished the Kore rebrand: application data now lives in `~/.kore` (was still `~/.rustylens`). An existing `~/.rustylens` directory is migrated automatically on first launch and stored kubeconfig paths are rewritten.
+- `svelte-check` failure caused by an unused `@ts-expect-error` in `vite.config.js`.
+- Clippy `unnecessary_sort_by` warnings.
+
 ## [0.2.0] - 2026-02-16
 
 ### Added

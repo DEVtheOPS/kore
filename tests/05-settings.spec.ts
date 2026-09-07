@@ -27,7 +27,7 @@ test.describe('Settings Page', () => {
 
   test('should show theme selector', async ({ page }) => {
     // Theme label
-    await expect(page.locator('label:has-text("Theme")').or(page.locator('label[for="theme-select"]'))).toBeVisible();
+    await expect(page.locator('label[for="theme-select"]')).toBeVisible();
 
     // Theme select component
     const themeSelect = page.locator('#theme-select').or(page.locator('button').filter({ hasText: /kore|rusty|dracula|alucard/i }));
@@ -46,22 +46,21 @@ test.describe('Settings Page', () => {
     await page.waitForTimeout(300);
 
     // Check for theme options (they might be in a dropdown menu)
-    const hasOptions = await page.locator('text=kore').or(page.locator('text=Kore')).isVisible();
-    expect(hasOptions).toBeTruthy();
+    await expect(page.locator('text=/^kore/i').first()).toBeVisible();
   });
 
   test('should persist theme selection', async ({ page }) => {
-    // Get current theme from html element
+    // The theme class is applied reactively after hydration; wait for it.
     const htmlElement = page.locator('html');
-    const initialClass = await htmlElement.getAttribute('class');
+    await expect(htmlElement).toHaveClass(/(^|\s)(kore|kore-light|rusty|rusty-light|dracula|alucard)(\s|$)/);
 
-    expect(initialClass).toBeTruthy();
+    // Pick a different theme and verify it is applied and persisted
+    await page.locator('#theme-select').click();
+    await page.locator('text=/^dracula$/i').first().click();
+    await expect(htmlElement).toHaveClass(/dracula/);
 
-    // Verify theme is applied
-    const hasTheme = ['kore', 'kore-light', 'rusty', 'rusty-light', 'dracula', 'alucard'].some(
-      theme => initialClass?.includes(theme)
-    );
-    expect(hasTheme).toBeTruthy();
+    await page.reload();
+    await expect(htmlElement).toHaveClass(/dracula/);
   });
 
   test('should navigate back to overview', async ({ page }) => {
@@ -80,7 +79,6 @@ test.describe('Settings Page', () => {
     await expect(container).toBeVisible();
 
     // Settings card
-    const card = page.locator('div:has(> div:has-text("Appearance"))');
-    await expect(card).toBeVisible();
+    await expect(page.locator('h3:has-text("Appearance")')).toBeVisible();
   });
 });

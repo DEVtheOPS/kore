@@ -34,10 +34,20 @@ Right-click any row (or use the row action menu) to:
 
 | Action | Description |
 |--------|-------------|
+| **View Details** | Open the pod detail panel |
+| **View Logs** | Open a live log stream in the bottom drawer (single-container pods open directly; multi-container pods open the detail panel so you can pick a container) |
+| **Edit YAML** | Open the full pod YAML in an editor tab in the bottom drawer, with **Apply** to write changes back to the cluster |
 | **Delete** | Delete the pod immediately (the owning controller will reschedule it) |
-| **View Logs** | Open a live log stream |
-| **Edit YAML** | Open the full pod YAML in the in-app editor |
-| **Copy name** | Copy the pod name to clipboard |
+
+Multiple pods can be selected with the checkboxes and deleted in one batch action.
+
+---
+
+## Live usage (metrics-server)
+
+The Deployment and StatefulSet detail panels show current CPU and memory usage for every pod matched by the workload's selector, read from the Kubernetes Metrics API (`metrics.k8s.io`). The Nodes page shows the same live usage per node against its allocatable capacity.
+
+This requires [metrics-server](https://github.com/kubernetes-sigs/metrics-server) (or a compatible provider) in the cluster. When it is not installed, Kore shows a notice instead of usage data — nothing else is affected.
 
 ---
 

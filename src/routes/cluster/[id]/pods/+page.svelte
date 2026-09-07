@@ -7,9 +7,11 @@
   import DataTable from "$lib/components/ui/DataTable.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
   import PodDetailDrawer from "$lib/components/PodDetailDrawer.svelte";
-  import { Trash2 } from "lucide-svelte";
+  import { Trash2, FileText, FilePenLine, Eye } from "lucide-svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
   import { headerStore } from "$lib/stores/header.svelte";
+  import { bottomDrawerStore } from "$lib/stores/bottomDrawer.svelte";
+  import type { MenuItem } from "$lib/components/ui/Menu.svelte";
 
   interface ContainerPort {
     name?: string;
@@ -83,6 +85,7 @@
   }
 
   interface Pod {
+    uid: string;
     name: string;
     namespace: string;
     status: string;
@@ -114,7 +117,10 @@
   let isDrawerOpen = $state(false);
   let unlisten: (() => void) | null = null;
   let now = $state(Date.now());
-  let interval: any;
+  let interval: ReturnType<typeof setInterval> | undefined;
+  // Monotonic counter so overlapping startWatch() calls (fast namespace switches,
+  // refresh during load) can't apply a stale list or start a stale watch.
+  let watchGeneration = 0;
 
   // Define Columns
   let columns = $state([
@@ -130,35 +136,31 @@
   ]);
 
   async function startWatch() {
-    if (!activeClusterStore.contextName) return;
+    const clusterId = activeClusterStore.clusterId;
+    const namespace = activeClusterStore.activeNamespace;
+    if (!clusterId) return;
 
+    const generation = ++watchGeneration;
     loading = true;
     error = "";
 
-    // First fetch initial list (optional as watch usually sends Restarted event first,
-    // but sometimes good for immediate feedback)
+    // Fetch the initial list for immediate feedback; the watch keeps it fresh afterwards.
     try {
-      pods = await invoke("list_pods", {
-        contextName: activeClusterStore.contextName,
-        namespace: activeClusterStore.activeNamespace,
-      });
+      const list = await invoke<Pod[]>("cluster_list_pods", { clusterId, namespace });
+      if (generation !== watchGeneration) return; // superseded
+      pods = list;
     } catch (e) {
+      if (generation !== watchGeneration) return;
       console.error(e);
-      // Demo data if failed
-      if (pods.length === 0) {
-        pods = [
-          /* ... demo data ... */
-        ];
-      }
+      error = `Failed to load pods: ${e}`;
     } finally {
-      loading = false;
+      if (generation === watchGeneration) loading = false;
     }
 
-    // Start Watch
-    invoke("start_pod_watch", {
-      contextName: activeClusterStore.contextName,
-      namespace: activeClusterStore.activeNamespace,
-    }).catch((e) => console.error("Watch failed to start", e));
+    // Start (or restart) the watch. The backend aborts any previous pod watch.
+    invoke("cluster_start_pod_watch", { clusterId, namespace }).catch((e) =>
+      console.error("Watch failed to start", e)
+    );
   }
 
   onMount(async () => {
@@ -171,7 +173,7 @@
         pods = payload.payload;
       } else if (payload.type === "Added" || payload.type === "Modified") {
         const newPod = payload.payload;
-        const idx = pods.findIndex((p) => p.name === newPod.name && p.namespace === newPod.namespace);
+        const idx = pods.findIndex((p) => p.uid === newPod.uid);
         if (idx >= 0) {
           pods[idx] = newPod;
         } else {
@@ -179,11 +181,9 @@
         }
       } else if (payload.type === "Deleted") {
         const deletedPod = payload.payload;
-        pods = pods.filter((p) => !(p.name === deletedPod.name && p.namespace === deletedPod.namespace));
+        pods = pods.filter((p) => p.uid !== deletedPod.uid);
       }
     });
-
-    startWatch();
 
     // Update 'now' every second for active age
     interval = setInterval(() => {
@@ -216,14 +216,12 @@
   onDestroy(() => {
     if (unlisten) unlisten();
     if (interval) clearInterval(interval);
+    invoke("cluster_stop_pod_watch").catch((e) => console.error("Failed to stop pod watch", e));
   });
 
+  // (Re)start the watch whenever the active cluster or namespace changes.
   $effect(() => {
-    if (activeClusterStore.contextName && activeClusterStore.activeNamespace) {
-      // Re-trigger watch when context changes
-      // Ideally we should tell backend to stop previous watch,
-      // but current simple impl just spawns new one.
-      // In prod, backend should handle cleanup based on channel drops or explicit stop command.
+    if (activeClusterStore.clusterId && activeClusterStore.activeNamespace) {
       startWatch();
     }
   });
@@ -252,8 +250,8 @@
     loadingEvents = true;
     podEvents = [];
     try {
-      podEvents = await invoke<PodEventInfo[]>("get_pod_events", {
-        contextName: activeClusterStore.contextName,
+      podEvents = await invoke<PodEventInfo[]>("cluster_get_pod_events", {
+        clusterId: activeClusterStore.clusterId,
         namespace: row.namespace,
         podName: row.name,
       });
@@ -290,31 +288,69 @@
     if (!confirmed) return;
 
     try {
-      await invoke("delete_pod", {
-        contextName: activeClusterStore.contextName,
+      await invoke("cluster_delete_pod", {
+        clusterId: activeClusterStore.clusterId,
         namespace: pod.namespace,
         podName: pod.name,
       });
       // UI update will happen via watch event
     } catch (e) {
-      alert(`Failed to delete pod: ${e}`);
+      error = `Failed to delete pod ${pod.name}: ${e}`;
     }
   }
 
-  function handleAction(action: string, pod: Pod) {
-    if (action === "Delete") {
-      handleDelete(pod);
+  function openLogs(pod: Pod, containerName: string) {
+    const clusterId = activeClusterStore.clusterId;
+    if (!clusterId) return;
+
+    const streamId = `${clusterId}-${pod.namespace}-${pod.name}-${containerName}`;
+    bottomDrawerStore.openTab({
+      id: streamId,
+      title: `${containerName}.log`,
+      type: "logs",
+      data: {
+        clusterId,
+        namespace: pod.namespace,
+        podName: pod.name,
+        containerName,
+        streamId,
+      },
+    });
+  }
+
+  function handleViewLogs(pod: Pod) {
+    const containers = pod.container_details ?? [];
+    if (containers.length === 1) {
+      openLogs(pod, containers[0].name);
     } else {
-      alert(`${action} on ${pod.name} (Not implemented)`);
+      // Multiple containers: open the detail drawer where each container has its own logs button.
+      handleRowClick(pod);
     }
   }
 
-  function getActions(row: any) {
+  function handleEditYaml(pod: Pod) {
+    const clusterId = activeClusterStore.clusterId;
+    if (!clusterId) return;
+
+    bottomDrawerStore.openTab({
+      id: `edit-pod-${clusterId}-${pod.namespace}-${pod.name}`,
+      title: `${pod.name}.yaml`,
+      type: "edit",
+      data: {
+        clusterId,
+        kind: "pod",
+        name: pod.name,
+        namespace: pod.namespace,
+      },
+    });
+  }
+
+  function getActions(row: Pod): MenuItem[] {
     return [
-      { label: "Open Shell", action: () => handleAction("Shell", row) },
-      { label: "View Logs", action: () => handleAction("Logs", row) },
-      { label: "Edit", action: () => handleAction("Edit", row) },
-      { label: "Delete", action: () => handleAction("Delete", row), danger: true },
+      { label: "View Details", icon: Eye, action: () => handleRowClick(row) },
+      { label: "View Logs", icon: FileText, action: () => handleViewLogs(row) },
+      { label: "Edit YAML", icon: FilePenLine, action: () => handleEditYaml(row) },
+      { label: "Delete", icon: Trash2, action: () => handleDelete(row), danger: true },
     ];
   }
 
@@ -331,27 +367,20 @@
 
         if (!confirmed) return;
 
-        // In a real app, this should probably be a single "delete_pods" command
-        // to handle parallelism efficiently on the backend, but for now loop is fine.
-        // We can just fire them off.
-        const promises = selectedIds.map((name) => {
-          // We need the namespace for each pod.
-          // Since selectedIds are just names (keyField="name"), we have to find the pod object.
-          // Note: keyField="name" might be risky if names aren't unique across namespaces,
-          // but usually the view is filtered by namespace or names are unique enough for this context.
-          // Ideally keyField should be a unique ID.
-          const pod = pods.find((p) => p.name === name);
-          if (pod) {
-            return invoke("delete_pod", {
-              contextName: activeClusterStore.contextName,
+        const targets = pods.filter((p) => selectedIds.includes(p.uid));
+        const results = await Promise.allSettled(
+          targets.map((pod) =>
+            invoke("cluster_delete_pod", {
+              clusterId: activeClusterStore.clusterId,
               namespace: pod.namespace,
               podName: pod.name,
-            }).catch((e) => console.error(`Failed to delete ${name}:`, e));
-          }
-          return Promise.resolve();
-        });
-
-        await Promise.all(promises);
+            })
+          )
+        );
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed > 0) {
+          error = `Failed to delete ${failed} of ${targets.length} pods.`;
+        }
       },
     },
   ];
@@ -359,8 +388,9 @@
 
 <div class="space-y-6 h-full flex flex-col">
   {#if error}
-    <div class="p-4 bg-error/10 text-error rounded-md border border-error/20">
-      {error} (Showing demo data)
+    <div class="p-4 bg-error/10 text-error rounded-md border border-error/20 flex items-center justify-between gap-3">
+      <span>{error}</span>
+      <button class="text-sm underline" onclick={() => (error = "")}>Dismiss</button>
     </div>
   {/if}
 
@@ -368,7 +398,7 @@
     <DataTable
       data={filteredPods}
       bind:columns
-      keyField="name"
+      keyField="uid"
       onRowClick={handleRowClick}
       storageKey="pods-table"
       bind:search

@@ -1,10 +1,16 @@
-interface Tab {
+import type { LogsTabData } from '$lib/components/tabs/LogsTab.svelte';
+import type { EditTabData } from '$lib/components/tabs/EditTab.svelte';
+
+interface BaseTab {
   id: string;
   title: string;
-  type: 'logs' | 'edit' | 'custom';
-  data: any;
   onClose?: () => void;
 }
+
+export type Tab =
+  | (BaseTab & { type: 'logs'; data: LogsTabData })
+  | (BaseTab & { type: 'edit'; data: EditTabData })
+  | (BaseTab & { type: 'custom'; data: unknown });
 
 class BottomDrawerStore {
   open = $state(false);

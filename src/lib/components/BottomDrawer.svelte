@@ -2,6 +2,7 @@
   import { X, ChevronDown, ChevronUp } from "lucide-svelte";
   import { bottomDrawerStore } from "$lib/stores/bottomDrawer.svelte";
   import LogsTab from "./tabs/LogsTab.svelte";
+  import EditTab from "./tabs/EditTab.svelte";
 
   let drawerHeight = $state(400);
   let isResizing = $state(false);
@@ -147,7 +148,7 @@
       <!-- Tab Content -->
       <div class="flex-1 overflow-hidden relative">
         {#if bottomDrawerStore.tabs.length === 0}
-          <div class="flex items-center justify-center h-full text-text-muted">Open a pod's logs to get started</div>
+          <div class="flex items-center justify-center h-full text-text-muted">Open a pod's logs or edit a resource to get started</div>
         {:else}
           <!-- Render all tabs but only show the active one -->
           {#each bottomDrawerStore.tabs as tab}
@@ -155,7 +156,7 @@
               {#if tab.type === "logs"}
                 <LogsTab data={tab.data} />
               {:else if tab.type === "edit"}
-                <div class="p-4">Edit functionality coming soon...</div>
+                <EditTab data={tab.data} />
               {:else}
                 <div class="p-4">Unknown tab type</div>
               {/if}

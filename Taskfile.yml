@@ -4,17 +4,17 @@ tasks:
   dev:
     desc: Run the development server (Frontend + Backend)
     cmds:
-      - pnpm tauri dev
+      - bun run tauri dev
 
   test:unit:
     desc: Run frontend unit tests
     cmds:
-      - pnpm test:unit
+      - bun run test:unit
 
   test:e2e:
     desc: Run frontend end-to-end tests (Playwright)
     cmds:
-      - pnpm test
+      - bun run test
 
   test:backend:
     desc: Run backend (Rust) tests
@@ -32,4 +32,4 @@ tasks:
   build:
     desc: Build the application for the current platform
     cmds:
-      - pnpm tauri build
+      - bun run tauri build

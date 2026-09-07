@@ -72,25 +72,18 @@ jobs:
           fi
 
       # ── Docs build ─────────────────────────────────────────────────────────
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: docs/pnpm-lock.yaml
+          bun-version-file: package.json
 
       - name: Install docs dependencies
         working-directory: docs
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Build Starlight docs
         working-directory: docs
-        run: pnpm build
+        run: bun run build
 
       # ── Preserve update.json from existing gh-pages ───────────────────────
       # The release workflow (release.yml) pushes update.json to gh-pages for

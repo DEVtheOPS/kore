@@ -11,16 +11,47 @@ pub struct AppConfig {
     pub kubeconfig_paths: Vec<PathBuf>,
 }
 
-pub fn get_app_config_dir() -> PathBuf {
-    let mut path = match dirs::home_dir() {
+/// Name of the application data directory under the user's home (`~/.kore`).
+pub const APP_DIR_NAME: &str = ".kore";
+/// Legacy (pre-rebrand) data directory name, migrated on startup if present.
+pub const LEGACY_APP_DIR_NAME: &str = ".rustylens";
+
+fn home_dir() -> PathBuf {
+    match dirs::home_dir() {
         Some(dir) => dir,
         None => {
             eprintln!("Could not find home directory, using /tmp");
             PathBuf::from("/tmp")
         }
-    };
-    path.push(".rustylens");
-    path
+    }
+}
+
+pub fn get_app_config_dir() -> PathBuf {
+    home_dir().join(APP_DIR_NAME)
+}
+
+pub fn get_legacy_app_config_dir() -> PathBuf {
+    home_dir().join(LEGACY_APP_DIR_NAME)
+}
+
+/// Move the pre-rebrand `~/.rustylens` directory to `~/.kore` if the new
+/// directory does not exist yet. Returns `Ok(true)` when a migration happened.
+///
+/// Absolute kubeconfig paths stored in the cluster database are rewritten by
+/// `ClusterManager::migrate_config_paths` after the database is opened.
+pub fn migrate_legacy_app_dir() -> std::io::Result<bool> {
+    migrate_legacy_app_dir_between(&get_legacy_app_config_dir(), &get_app_config_dir())
+}
+
+pub(crate) fn migrate_legacy_app_dir_between(
+    legacy: &Path,
+    current: &Path,
+) -> std::io::Result<bool> {
+    if current.exists() || !legacy.is_dir() {
+        return Ok(false);
+    }
+    fs::rename(legacy, current)?;
+    Ok(true)
 }
 
 pub fn get_kubeconfigs_dir() -> PathBuf {
@@ -30,6 +61,15 @@ pub fn get_kubeconfigs_dir() -> PathBuf {
 }
 
 pub fn init_directories() -> std::io::Result<()> {
+    match migrate_legacy_app_dir() {
+        Ok(true) => eprintln!(
+            "Migrated legacy data directory {} -> {}",
+            LEGACY_APP_DIR_NAME, APP_DIR_NAME
+        ),
+        Ok(false) => {}
+        Err(e) => eprintln!("Warning: failed to migrate legacy data directory: {}", e),
+    }
+
     let app_dir = get_app_config_dir();
     if !app_dir.exists() {
         fs::create_dir_all(&app_dir)?;
@@ -167,6 +207,38 @@ pub fn validate_import_source(path: &Path) -> Result<PathBuf, String> {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_dir_migration_renames_when_target_missing() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let legacy = temp.path().join(".rustylens");
+        let current = temp.path().join(".kore");
+        fs::create_dir_all(legacy.join("kubeconfigs")).unwrap();
+        fs::write(legacy.join("clusters.db"), b"db").unwrap();
+
+        assert!(migrate_legacy_app_dir_between(&legacy, &current).unwrap());
+        assert!(!legacy.exists());
+        assert!(current.join("kubeconfigs").is_dir());
+        assert_eq!(fs::read(current.join("clusters.db")).unwrap(), b"db");
+    }
+
+    #[test]
+    fn legacy_dir_migration_is_noop_when_target_exists_or_legacy_missing() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let legacy = temp.path().join(".rustylens");
+        let current = temp.path().join(".kore");
+
+        // Neither exists
+        assert!(!migrate_legacy_app_dir_between(&legacy, &current).unwrap());
+
+        // Both exist: never clobber the current directory
+        fs::create_dir_all(&legacy).unwrap();
+        fs::create_dir_all(&current).unwrap();
+        fs::write(current.join("keep"), b"x").unwrap();
+        assert!(!migrate_legacy_app_dir_between(&legacy, &current).unwrap());
+        assert!(legacy.exists());
+        assert!(current.join("keep").exists());
+    }
 
     #[test]
     fn validate_kubeconfig_path_rejects_parent_traversal() {

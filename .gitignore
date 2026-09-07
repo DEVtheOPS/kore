@@ -16,7 +16,7 @@ test-results/
 /update.json
 /gh-pages-update/
 
-# Playwright screenshots — generated locally by `pnpm screenshots`
+# Playwright screenshots — generated locally by `bun run screenshots`
 # and injected into the docs site by CI. Never commit these.
 /screenshots/
 /screenshot-report/

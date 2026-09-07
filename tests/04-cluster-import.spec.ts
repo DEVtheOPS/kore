@@ -39,7 +39,7 @@ test.describe('Cluster Import Modal', () => {
 
   test('should show select file button in file tab', async ({ page }) => {
     // Should have select file button
-    const selectButton = page.locator('button:has-text("Select File")');
+    const selectButton = page.locator('button:has-text("Choose Kubeconfig File")');
     await expect(selectButton).toBeVisible();
   });
 
@@ -48,19 +48,19 @@ test.describe('Cluster Import Modal', () => {
     await page.locator('button:has-text("Import from Folder")').click();
 
     // Should have select folder button
-    const selectButton = page.locator('button:has-text("Select Folder")');
+    const selectButton = page.locator('button:has-text("Choose Folder")');
     await expect(selectButton).toBeVisible();
   });
 
   test('should show descriptive text for file import', async ({ page }) => {
-    await expect(page.locator('text=Select a kubeconfig file to import')).toBeVisible();
+    await expect(page.locator('text=Select a kubeconfig file')).toBeVisible();
   });
 
   test('should show descriptive text for folder import', async ({ page }) => {
     // Switch to folder tab
     await page.locator('button:has-text("Import from Folder")').click();
 
-    await expect(page.locator('text=Select a folder to scan for kubeconfig files')).toBeVisible();
+    await expect(page.locator('text=Choose a folder to scan for kubeconfig files')).toBeVisible();
   });
 
   test('should close modal on backdrop click', async ({ page }) => {
@@ -87,6 +87,6 @@ test.describe('Cluster Import Modal', () => {
     await page.locator('button:has-text("Import from File")').click();
 
     // Should still show select button (not context list)
-    await expect(page.locator('button:has-text("Select File")').or(page.locator('text=Scanning...'))).toBeVisible();
+    await expect(page.locator('button:has-text("Choose Kubeconfig File")').or(page.locator('text=Scanning folder...'))).toBeVisible();
   });
 });

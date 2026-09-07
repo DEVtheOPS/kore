@@ -4,12 +4,13 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { confirm, open } from "@tauri-apps/plugin-dialog";
+  import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { headerStore } from "$lib/stores/header.svelte";
   import { clustersStore, type Cluster } from "$lib/stores/clusters.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Card from "$lib/components/ui/Card.svelte";
-  import { Trash2, Save, Upload, Image as ImageIcon } from "lucide-svelte";
+  import { Trash2, Save, Upload, Image as ImageIcon, FolderOpen, Copy, Check } from "lucide-svelte";
 
   const clusterId = $derived($page.params.id);
   
@@ -92,6 +93,27 @@
       } catch (e) {
         console.error("Failed to delete cluster", e);
       }
+    }
+  }
+
+  let copiedField = $state<string | null>(null);
+
+  async function copyToClipboard(field: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      copiedField = field;
+      setTimeout(() => (copiedField = null), 1500);
+    } catch (e) {
+      console.error("Failed to copy to clipboard", e);
+    }
+  }
+
+  async function revealKubeconfig() {
+    if (!cluster?.config_path) return;
+    try {
+      await revealItemInDir(cluster.config_path);
+    } catch (e) {
+      console.error("Failed to reveal kubeconfig", e);
     }
   }
 
@@ -274,19 +296,50 @@
       </div>
     </Card>
 
-    <!-- Advanced Settings -->
+    <!-- Connection -->
     <Card>
       <div class="p-6 space-y-4">
-        <h2 class="text-lg font-semibold">Advanced Settings</h2>
+        <h2 class="text-lg font-semibold">Connection</h2>
+        <p class="text-sm text-text-muted">
+          Kore talks to this cluster through an extracted single-context kubeconfig. Edit that file (or re-import the
+          cluster) to change credentials or the API server.
+        </p>
 
-        <div class="space-y-2">
-          <h3 class="text-sm font-medium text-text-muted">Proxy Settings</h3>
-          <p class="text-sm text-text-muted">Coming soon</p>
-        </div>
+        <div class="space-y-3 text-sm">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="text-text-muted">Context</div>
+              <div class="font-mono truncate" title={cluster.context_name}>{cluster.context_name}</div>
+            </div>
+            <Button variant="ghost" size="sm" onclick={() => copyToClipboard("context", cluster!.context_name)} title="Copy context name">
+              {#if copiedField === "context"}<Check size={14} />{:else}<Copy size={14} />{/if}
+            </Button>
+          </div>
 
-        <div class="space-y-2">
-          <h3 class="text-sm font-medium text-text-muted">Terminal Settings</h3>
-          <p class="text-sm text-text-muted">Coming soon</p>
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="text-text-muted">Kubeconfig</div>
+              <div class="font-mono text-xs truncate" title={cluster.config_path}>{cluster.config_path}</div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="sm" onclick={() => copyToClipboard("path", cluster!.config_path)} title="Copy path">
+                {#if copiedField === "path"}<Check size={14} />{:else}<Copy size={14} />{/if}
+              </Button>
+              <Button variant="ghost" size="sm" onclick={revealKubeconfig} title="Reveal in file manager">
+                <FolderOpen size={14} />
+              </Button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="text-text-muted">Cluster ID</div>
+              <div class="font-mono text-xs truncate">{cluster.id}</div>
+            </div>
+            <Button variant="ghost" size="sm" onclick={() => copyToClipboard("id", cluster!.id)} title="Copy cluster ID">
+              {#if copiedField === "id"}<Check size={14} />{:else}<Copy size={14} />{/if}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

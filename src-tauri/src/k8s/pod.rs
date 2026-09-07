@@ -1,22 +1,19 @@
 use crate::cluster_manager::ClusterManagerState;
-use crate::k8s::client::{create_client_for_cluster, create_client_for_context};
+use crate::k8s::client::create_client_for_cluster;
 use crate::k8s::watcher::WatcherState;
 use futures::{AsyncBufReadExt, StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{DeleteParams, ListParams, LogParams};
 use kube::runtime::watcher;
 use kube::Api;
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, State, Window};
-use tokio::sync::{broadcast, Mutex};
 
-// Global state for managing log stream cancellation
-type StreamRegistry = Arc<Mutex<HashMap<String, broadcast::Sender<()>>>>;
+/// Registry key for the single active pod watch. Only one pods view is
+/// visible at a time, so starting a new watch always aborts the previous one.
+const POD_WATCH_KEY: &str = "pod_watch";
 
-fn stream_registry() -> &'static StreamRegistry {
-    static REGISTRY: OnceLock<StreamRegistry> = OnceLock::new();
-    REGISTRY.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+fn log_stream_key(stream_id: &str) -> String {
+    format!("logs:{}", stream_id)
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -80,6 +77,7 @@ pub struct VolumeInfo {
 
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct PodSummary {
+    uid: String,
     name: String,
     namespace: String,
     status: String,
@@ -171,6 +169,11 @@ fn map_pod_to_summary(p: Pod) -> PodSummary {
         .unwrap_or_default();
     let name = p.metadata.name.clone().unwrap_or_default();
     let namespace = p.metadata.namespace.clone().unwrap_or_default();
+    let uid = p
+        .metadata
+        .uid
+        .clone()
+        .unwrap_or_else(|| format!("{}/{}", namespace, name));
     let age = p
         .metadata
         .creation_timestamp
@@ -471,6 +474,7 @@ fn map_pod_to_summary(p: Pod) -> PodSummary {
     }
 
     PodSummary {
+        uid,
         name,
         namespace,
         status,
@@ -493,185 +497,6 @@ fn map_pod_to_summary(p: Pod) -> PodSummary {
     }
 }
 
-#[tauri::command]
-pub async fn list_pods(context_name: String, namespace: String) -> Result<Vec<PodSummary>, String> {
-    let client = create_client_for_context(&context_name).await?;
-
-    let pods: Api<Pod> = if namespace == "all" {
-        Api::all(client)
-    } else {
-        Api::namespaced(client, &namespace)
-    };
-
-    let lp = ListParams::default();
-
-    let pod_list = pods
-        .list(&lp)
-        .await
-        .map_err(|e| format!("Failed to list pods: {}", e))?;
-
-    let summaries = pod_list.items.into_iter().map(map_pod_to_summary).collect();
-
-    Ok(summaries)
-}
-
-#[tauri::command]
-pub async fn delete_pod(
-    context_name: String,
-    namespace: String,
-    pod_name: String,
-) -> Result<(), String> {
-    let client = create_client_for_context(&context_name).await?;
-    let pods: Api<Pod> = Api::namespaced(client, &namespace);
-
-    pods.delete(&pod_name, &DeleteParams::default())
-        .await
-        .map_err(|e| format!("Failed to delete pod: {}", e))?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn get_pod_events(
-    context_name: String,
-    namespace: String,
-    pod_name: String,
-) -> Result<Vec<PodEventInfo>, String> {
-    use k8s_openapi::api::core::v1::Event;
-
-    let client = create_client_for_context(&context_name).await?;
-    let events: Api<Event> = Api::namespaced(client, &namespace);
-
-    let lp = ListParams::default().fields(&format!("involvedObject.name={}", pod_name));
-
-    let event_list = events
-        .list(&lp)
-        .await
-        .map_err(|e| format!("Failed to list events: {}", e))?;
-
-    let mut event_infos: Vec<PodEventInfo> = event_list
-        .items
-        .into_iter()
-        .map(|e| {
-            let source = e
-                .source
-                .as_ref()
-                .and_then(|s| s.component.clone())
-                .unwrap_or_else(|| "unknown".to_string());
-
-            PodEventInfo {
-                event_type: e.type_.unwrap_or_else(|| "Normal".to_string()),
-                reason: e.reason.unwrap_or_default(),
-                message: e.message.unwrap_or_default(),
-                count: e.count.unwrap_or(1),
-                first_timestamp: e.first_timestamp.as_ref().map(|t| t.0.to_string()),
-                last_timestamp: e.last_timestamp.as_ref().map(|t| t.0.to_string()),
-                source,
-            }
-        })
-        .collect();
-
-    // Sort by last_timestamp descending (most recent first)
-    event_infos.sort_by(|a, b| b.last_timestamp.as_ref().cmp(&a.last_timestamp.as_ref()));
-
-    Ok(event_infos)
-}
-
-#[tauri::command]
-pub async fn stream_container_logs(
-    window: Window,
-    context_name: String,
-    namespace: String,
-    pod_name: String,
-    container_name: String,
-    stream_id: String,
-) -> Result<(), String> {
-    let client = create_client_for_context(&context_name).await?;
-    let pods: Api<Pod> = Api::namespaced(client, &namespace);
-
-    let log_params = LogParams {
-        follow: true,
-        tail_lines: Some(1000),
-        container: Some(container_name.clone()),
-        ..Default::default()
-    };
-
-    // Create a cancellation channel for this stream
-    let (cancel_tx, mut cancel_rx) = broadcast::channel::<()>(1);
-
-    // Store the sender in the registry
-    {
-        let mut registry = stream_registry().lock().await;
-        registry.insert(stream_id.clone(), cancel_tx);
-    }
-
-    // Spawn a task to stream logs
-    let stream_id_clone = stream_id.clone();
-    tauri::async_runtime::spawn(async move {
-        match pods.log_stream(&pod_name, &log_params).await {
-            Ok(stream) => {
-                let mut lines = stream.lines();
-                loop {
-                    tokio::select! {
-                        // Check for cancellation signal
-                        _ = cancel_rx.recv() => {
-                            println!("Stream cancelled: {}", stream_id_clone);
-                            break;
-                        }
-                        // Process log lines
-                        result = lines.try_next() => {
-                            match result {
-                                Ok(Some(line)) => {
-                                    let event_name = format!("container_logs_{}", stream_id_clone);
-                                    if let Err(e) = window.emit(&event_name, line) {
-                                        println!("Failed to emit log line: {}", e);
-                                        break;
-                                    }
-                                }
-                                Ok(None) => {
-                                    // Stream ended naturally
-                                    println!("Stream ended: {}", stream_id_clone);
-                                    break;
-                                }
-                                Err(e) => {
-                                    println!("Error reading log line: {}", e);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                println!("Failed to open log stream: {}", e);
-            }
-        }
-
-        // Clean up: remove from registry when stream ends
-        let mut registry = stream_registry().lock().await;
-        registry.remove(&stream_id_clone);
-        println!("Cleaned up stream registry: {}", stream_id_clone);
-    });
-
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn stop_stream_logs(stream_id: String) -> Result<(), String> {
-    let mut registry = stream_registry().lock().await;
-
-    if let Some(cancel_tx) = registry.remove(&stream_id) {
-        // Send cancellation signal (ignore errors if no receivers)
-        let _ = cancel_tx.send(());
-        println!("Sent stop signal for stream: {}", stream_id);
-        Ok(())
-    } else {
-        // Stream not found - it may have already ended
-        println!("Stream not found in registry: {}", stream_id);
-        Ok(())
-    }
-}
-
 #[derive(Clone, serde::Serialize)]
 #[serde(tag = "type", content = "payload")]
 pub enum PodEvent {
@@ -681,55 +506,6 @@ pub enum PodEvent {
     Deleted(PodSummary),
     #[allow(dead_code)]
     Restarted(Vec<PodSummary>),
-}
-
-#[tauri::command]
-pub async fn start_pod_watch(
-    window: Window,
-    context_name: String,
-    namespace: String,
-) -> Result<(), String> {
-    use kube::runtime::watcher::Config as WatchConfig;
-
-    let client = create_client_for_context(&context_name).await?;
-
-    let api: Api<Pod> = if namespace == "all" {
-        Api::all(client)
-    } else {
-        Api::namespaced(client, &namespace)
-    };
-
-    let config = WatchConfig::default();
-
-    // Spawn a task to watch
-    tauri::async_runtime::spawn(async move {
-        let mut stream = watcher(api, config).boxed();
-
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(event) => {
-                    let pod_event = match event {
-                        watcher::Event::Apply(pod) => PodEvent::Added(map_pod_to_summary(pod)),
-                        watcher::Event::Delete(pod) => PodEvent::Deleted(map_pod_to_summary(pod)),
-                        watcher::Event::InitApply(pod) => PodEvent::Added(map_pod_to_summary(pod)),
-                        _ => continue,
-                    };
-
-                    if let Err(e) = window.emit("pod_event", pod_event) {
-                        // Window might be closed
-                        println!("Failed to emit event: {}", e);
-                        break;
-                    }
-                }
-                Err(e) => {
-                    println!("Watch error: {}", e);
-                    // Decide whether to break or continue
-                }
-            }
-        }
-    });
-
-    Ok(())
 }
 
 #[tauri::command]
@@ -746,7 +522,7 @@ pub async fn cluster_list_pods(
         Api::namespaced(client, &namespace)
     };
 
-    let lp = kube::api::ListParams::default();
+    let lp = ListParams::default();
     let list = pods
         .list(&lp)
         .await
@@ -770,7 +546,7 @@ pub async fn cluster_delete_pod(
     let client = create_client_for_cluster(&cluster_id, &state).await?;
     let pods: Api<Pod> = Api::namespaced(client, &namespace);
 
-    pods.delete(&pod_name, &kube::api::DeleteParams::default())
+    pods.delete(&pod_name, &DeleteParams::default())
         .await
         .map_err(|e| format!("Failed to delete pod: {}", e))?;
 
@@ -873,20 +649,9 @@ pub async fn cluster_stream_container_logs(
         ..Default::default()
     };
 
-    let key = format!("logs:{}", stream_id);
-
-    // Abort existing if any
-    {
-        let mut watchers = watcher_state
-            .0
-            .lock()
-            .map_err(|e| format!("Watcher state lock poisoned: {}", e))?;
-        if let Some(handle) = watchers.remove(&key) {
-            handle.abort();
-        }
-    }
-
-    let watchers = watcher_state.inner().0.clone();
+    let key = log_stream_key(&stream_id);
+    let generation = WatcherState::next_generation();
+    let registry = watcher_state.inner().clone();
     let key_clone = key.clone();
 
     let handle = tauri::async_runtime::spawn(async move {
@@ -915,22 +680,11 @@ pub async fn cluster_stream_container_logs(
             }
         }
 
-        // Cleanup
-        if let Ok(mut watchers) = watchers.lock() {
-            watchers.remove(&key_clone);
-        } else {
-            eprintln!("Warning: failed to clean up log watcher state");
-        }
+        registry.remove_if_current(&key_clone, generation);
     });
 
-    // Store new handle
-    {
-        let mut watchers = watcher_state
-            .0
-            .lock()
-            .map_err(|e| format!("Watcher state lock poisoned: {}", e))?;
-        watchers.insert(key, handle);
-    }
+    // Register (this aborts any previous stream with the same id).
+    watcher_state.insert(key, generation, handle)?;
 
     Ok(())
 }
@@ -954,20 +708,9 @@ pub async fn cluster_start_pod_watch(
     };
 
     let config = WatchConfig::default();
-    let key = format!("pod_watch:{}:{}", cluster_id, namespace);
-
-    // Abort existing if any
-    {
-        let mut watchers = watcher_state
-            .0
-            .lock()
-            .map_err(|e| format!("Watcher state lock poisoned: {}", e))?;
-        if let Some(handle) = watchers.remove(&key) {
-            handle.abort();
-        }
-    }
-
-    let watchers = watcher_state.inner().0.clone();
+    let key = POD_WATCH_KEY.to_string();
+    let generation = WatcherState::next_generation();
+    let registry = watcher_state.inner().clone();
     let key_clone = key.clone();
 
     let handle = tauri::async_runtime::spawn(async move {
@@ -994,22 +737,24 @@ pub async fn cluster_start_pod_watch(
             }
         }
 
-        // Cleanup
-        if let Ok(mut watchers) = watchers.lock() {
-            watchers.remove(&key_clone);
-        } else {
-            eprintln!("Warning: failed to clean up pod watcher state");
-        }
+        registry.remove_if_current(&key_clone, generation);
     });
 
-    // Store new handle
-    {
-        let mut watchers = watcher_state
-            .0
-            .lock()
-            .map_err(|e| format!("Watcher state lock poisoned: {}", e))?;
-        watchers.insert(key, handle);
-    }
+    // Register (this aborts any previous pod watch).
+    watcher_state.insert(key, generation, handle)?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn cluster_stop_stream_logs(
+    stream_id: String,
+    watcher_state: State<'_, WatcherState>,
+) -> Result<(), String> {
+    watcher_state.abort(&log_stream_key(&stream_id))
+}
+
+#[tauri::command]
+pub async fn cluster_stop_pod_watch(watcher_state: State<'_, WatcherState>) -> Result<(), String> {
+    watcher_state.abort(POD_WATCH_KEY)
 }

@@ -20,10 +20,3 @@ test-results/
 # and injected into the docs site by CI. Never commit these.
 /screenshots/
 /screenshot-report/
-
-# Dolt database files (added by bd init)
-.dolt/
-*.db
-dolt-server.activity
-dolt-monitor.pid
-dolt-server.log

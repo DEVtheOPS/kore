@@ -6,19 +6,11 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Create tag ref with GITHUB_TOKEN
+      - name: Create published release v0.4.0 exactly like release-please, then delete it
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           set +e
-          gh api -X POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v0.0.0-zzprobe-tag -f sha=${{ github.sha }}; echo "tag-ref exit=$?"
-          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v0.0.0-zzprobe-tag; echo "tag-del exit=$?"
-      - name: Create published release with GITHUB_TOKEN
-        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
-        run: |
-          set +e
-          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.0.0-zzprobe-rel -f target_commitish=${{ github.sha }} -f name=probe -F draft=false; echo "release exit=$?"
-      - name: Create draft release with GITHUB_TOKEN
-        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
-        run: |
-          set +e
-          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.0.0-zzprobe-draft -f target_commitish=${{ github.sha }} -f name=probe-draft -F draft=true; echo "draft exit=$?"
+          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.4.0 -f name=v0.4.0 -f body="probe body" -f target_commitish=2981260924d96b1595927fd19b288eff728d8838 -F draft=false -F prerelease=false > /tmp/out.json; echo "release exit=$?"; cat /tmp/out.json | head -c 400; echo
+          ID=$(python3 -c "import json; print(json.load(open('/tmp/out.json')).get('id',''))")
+          [ -n "$ID" ] && gh api -X DELETE repos/${{ github.repository }}/releases/$ID && echo "deleted release"
+          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v0.4.0; echo "tag-del exit=$?"

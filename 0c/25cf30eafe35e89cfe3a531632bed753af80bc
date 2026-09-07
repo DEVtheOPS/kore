@@ -1,0 +1,24 @@
+docs/src/content/docs/getting-started/installation.md
+  s_bffc71cc25d601::t_81755d651f80aa 18,20,72
+docs/src/pages/index.astro
+  s_bffc71cc25d601::t_81755d651f80aa 49-51
+  s_bffc71cc25d601::t_5f195aad759478 138-139
+CHANGELOG.md
+  s_bffc71cc25d601::t_5f195aad759478 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "0c25cf30eafe35e89cfe3a531632bed753af80bc",
+  "prompts": {},
+  "sessions": {
+    "s_bffc71cc25d601": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f8313059cffe9aINkMxL03L57Q",
+        "model": "anthropic.claude-fable-5-1"
+      },
+      "human_author": "Marc Seiler <mseiler@gmail.com>"
+    }
+  }
+}

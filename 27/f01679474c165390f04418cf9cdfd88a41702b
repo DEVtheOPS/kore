@@ -1,0 +1,19 @@
+.github/workflows/zz-probe.yml
+  s_bffc71cc25d601::t_2ceb5bb6135d9f 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "27f01679474c165390f04418cf9cdfd88a41702b",
+  "prompts": {},
+  "sessions": {
+    "s_bffc71cc25d601": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f8313059cffe9aINkMxL03L57Q",
+        "model": "anthropic.claude-fable-5-1"
+      },
+      "human_author": "Marc Seiler <mseiler@gmail.com>"
+    }
+  }
+}

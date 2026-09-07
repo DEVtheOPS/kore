@@ -10,15 +10,15 @@ jobs:
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           set +e
-          gh api -X POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/zz-probe-tag -f sha=${{ github.sha }}; echo "tag-ref exit=$?"
-          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/zz-probe-tag; echo "tag-del exit=$?"
+          gh api -X POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v0.0.0-zzprobe-tag -f sha=${{ github.sha }}; echo "tag-ref exit=$?"
+          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v0.0.0-zzprobe-tag; echo "tag-del exit=$?"
       - name: Create published release with GITHUB_TOKEN
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           set +e
-          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=zz-probe-rel -f target_commitish=${{ github.sha }} -f name=probe -F draft=false; echo "release exit=$?"
+          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.0.0-zzprobe-rel -f target_commitish=${{ github.sha }} -f name=probe -F draft=false; echo "release exit=$?"
       - name: Create draft release with GITHUB_TOKEN
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           set +e
-          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=zz-probe-draft -f target_commitish=${{ github.sha }} -f name=probe-draft -F draft=true; echo "draft exit=$?"
+          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.0.0-zzprobe-draft -f target_commitish=${{ github.sha }} -f name=probe-draft -F draft=true; echo "draft exit=$?"

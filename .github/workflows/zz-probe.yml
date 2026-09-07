@@ -6,11 +6,17 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Create published release v0.4.0 exactly like release-please, then delete it
-        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           set +e
-          gh api -X POST repos/${{ github.repository }}/releases -f tag_name=v0.4.0 -f name=v0.4.0 -f body="probe body" -f target_commitish=2981260924d96b1595927fd19b288eff728d8838 -F draft=false -F prerelease=false > /tmp/out.json; echo "release exit=$?"; cat /tmp/out.json | head -c 400; echo
-          ID=$(python3 -c "import json; print(json.load(open('/tmp/out.json')).get('id',''))")
-          [ -n "$ID" ] && gh api -X DELETE repos/${{ github.repository }}/releases/$ID && echo "deleted release"
-          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v0.4.0; echo "tag-del exit=$?"
+          try() { # $1 label, $2 tag, $3 sha
+            gh api -X POST repos/${{ github.repository }}/releases -f tag_name="$2" -f name="$2" -f target_commitish="$3" -F draft=false > /tmp/out.json; rc=$?
+            echo "RESULT $1 tag=$2 sha=${3:0:7} exit=$rc $(python3 -c "import json;d=json.load(open('/tmp/out.json'));print(d.get('message','ok'))")"
+            ID=$(python3 -c "import json; print(json.load(open('/tmp/out.json')).get('id',''))"); [ -n "$ID" ] && gh api -X DELETE repos/${{ github.repository }}/releases/$ID >/dev/null
+            gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/"$2" >/dev/null 2>&1
+          }
+          try A v0.4.0            ${{ github.sha }}
+          try B v0.0.0-zz         2981260924d96b1595927fd19b288eff728d8838
+          try C v9.9.9            ${{ github.sha }}
+          try D 0.4.0             ${{ github.sha }}
+          try E v0.4.0-rc1        ${{ github.sha }}

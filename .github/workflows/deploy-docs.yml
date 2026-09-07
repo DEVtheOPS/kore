@@ -83,6 +83,14 @@ jobs:
         with:
           bun-version-file: package.json
 
+      # Vite 8 (via Astro 7) discovers tsconfig files up to the git root. The
+      # app's root tsconfig.json extends a SvelteKit-generated file, so make
+      # sure it exists before building the docs.
+      - name: Generate SvelteKit tsconfig
+        run: |
+          bun install --frozen-lockfile
+          bunx svelte-kit sync
+
       - name: Install docs dependencies
         working-directory: docs
         run: bun install --frozen-lockfile

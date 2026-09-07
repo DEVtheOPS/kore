@@ -72,6 +72,12 @@ jobs:
           fi
 
       # ── Docs build ─────────────────────────────────────────────────────────
+      # Astro 7 requires Node >= 22.12; the runner default is Node 20.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:

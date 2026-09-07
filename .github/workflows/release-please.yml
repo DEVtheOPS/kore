@@ -5,10 +5,14 @@ name: Release Please
 #   1. release-please opens/updates a release PR from Conventional Commits,
 #      bumping package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml,
 #      docs/package.json and CHANGELOG.md.
-#   2. Merging that PR creates a *draft* GitHub release.
+#   2. Merging that PR creates the GitHub release and the vX.Y.Z tag.
+#      (The release is created published, not draft: release-please locates
+#      the latest release by tag, and draft releases have no tag, which makes
+#      it open another release PR for the same commits.)
 #   3. Signed installers for every platform are built and attached to it.
-#   4. The release is published, and update.json for the in-app updater is
-#      pushed to gh-pages.
+#   4. update.json for the in-app updater is pushed to gh-pages. The updater
+#      only sees a release once this step has run, so the short window where
+#      the release page has no assets does not affect existing installs.
 
 on:
   push:
@@ -104,8 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The tag only exists once the draft is published; build the release commit.
-          ref: ${{ needs.release-please.outputs.sha }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -141,22 +144,9 @@ jobs:
           releaseId: ${{ needs.release-please.outputs.release_id }}
           args: ${{ matrix.args }}
 
-  publish-release:
-    name: Publish Release
-    needs: [release-please, build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: false
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   update-pages:
     name: Update gh-pages
-    needs: [release-please, publish-release]
+    needs: [release-please, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

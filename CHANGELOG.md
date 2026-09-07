@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Homebrew tap workflow and winget manifests / distribution docs. Kore is distributed only via GitHub Releases and the GitHub Pages site.
 - Beads (`bd`) issue tracking: `.beads/`, the Cursor rule, the `.gitattributes` merge driver, and Dolt gitignore entries. Open work now lives in `docs/ROADMAP.md`.
 - Legacy context-name based backend commands (`list_contexts`, `list_namespaces`, `list_pods`, `delete_pod`, `get_pod_events`, `stream_container_logs`, `stop_stream_logs`, `start_pod_watch`, `greet`) and the unused legacy `Sidebar.svelte` / `clusterStore`.
 - Fake "mock chart data" in the Deployment detail panel.

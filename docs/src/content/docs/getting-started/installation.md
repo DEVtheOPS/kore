@@ -15,17 +15,9 @@ Kore ships as a self-contained native binary built with [Tauri v2](https://tauri
 
 ---
 
+All downloads are published on the [GitHub Releases](https://github.com/DEVtheOPS/kore/releases/latest) page. There are no package-manager channels — grab the installer for your platform below.
+
 ## macOS
-
-### Homebrew (recommended)
-
-```sh
-brew install --cask devtheops/tap/kore
-```
-
-Homebrew handles updates automatically. Run `brew upgrade --cask kore` to update.
-
-### Manual download
 
 1. Open the [latest GitHub Release](https://github.com/DEVtheOPS/kore/releases/latest)
 2. Download the `.dmg` for your architecture:
@@ -77,4 +69,4 @@ sudo dpkg -i kore_*.deb
 
 Kore includes a built-in auto-updater. When a new version is available you will see a notification in the app. Click **Update** to download and install in the background.
 
-Alternatively, re-run the Homebrew command or download the latest installer manually.
+Alternatively, download the latest installer from the [Releases page](https://github.com/DEVtheOPS/kore/releases/latest) and install it over the existing version.

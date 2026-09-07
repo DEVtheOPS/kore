@@ -46,9 +46,9 @@ const screenshots = [
 ]
 
 const installOptions = [
-  { os: 'macOS',   icon: '🍎', cmd: 'brew install --cask devtheops/tap/kore' },
-  { os: 'Linux',   icon: '🐧', cmd: 'See GitHub Releases for .AppImage / .deb' },
-  { os: 'Windows', icon: '🪟', cmd: 'See GitHub Releases for .msi installer' },
+  { os: 'macOS',   icon: '🍎', cmd: '.dmg — Apple Silicon, Intel, or Universal' },
+  { os: 'Linux',   icon: '🐧', cmd: '.AppImage, .deb, or .rpm (x86_64)' },
+  { os: 'Windows', icon: '🪟', cmd: '.msi installer (x64)' },
 ]
 ---
 
@@ -135,6 +135,8 @@ const installOptions = [
       ))}
     </div>
     <p class="install-note">
+      All installers are on the
+      <a href="https://github.com/DEVtheOPS/kore/releases/latest">GitHub Releases page</a>.
       Built with <a href="https://tauri.app">Tauri v2</a> — ships as a tiny
       native binary (&lt; 20 MB). No Electron. No Node.js runtime.
     </p>

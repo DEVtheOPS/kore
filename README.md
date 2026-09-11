@@ -109,7 +109,7 @@ Kore uses GitHub Actions for automated testing and releases.
 
 ### Setting Up Auto-Updates
 
-The Tauri updater requires signed binaries. To set this up:
+The in-app updater checks `https://devtheops.github.io/kore/update.json` (falling back to the `latest.json` asset on the latest GitHub Release) and verifies downloads against the public key below. To set up signing for a fork:
 
 1. **Generate signing keys**:
 

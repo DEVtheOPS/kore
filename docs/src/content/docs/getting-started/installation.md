@@ -67,6 +67,8 @@ sudo dpkg -i kore_*.deb
 
 ## Updating
 
-Kore includes a built-in auto-updater. When a new version is available you will see a notification in the app. Click **Update** to download and install in the background.
+Kore checks for updates shortly after launch and every six hours. When a new version is available, a green dot appears on the **Settings** icon in the sidebar; open **Settings → Updates** to read the release notes and click **Install & Restart**. Updates are downloaded from GitHub Releases and verified against Kore's signing key before they are applied.
 
-Alternatively, download the latest installer from the [Releases page](https://github.com/DEVtheOPS/kore/releases/latest) and install it over the existing version.
+Turn off automatic checks with **Check for updates automatically** in the same card — you can still check manually with **Check Now**.
+
+Linux `.deb` / `.rpm` installs cannot replace themselves: Kore shows the new version and links to the [Releases page](https://github.com/DEVtheOPS/kore/releases/latest) so you can install the package with your package manager. AppImage, macOS, and Windows installs update in place.

@@ -58,7 +58,7 @@
       });
     } catch (e) {
       console.error("Failed to load events", e);
-      error = "Failed to load events.";
+      error = `Failed to load events: ${e}`;
     } finally {
       loading = false;
     }

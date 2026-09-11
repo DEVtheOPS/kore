@@ -82,7 +82,7 @@
       }
     } catch (e) {
       console.error("Failed to load workload overview", e);
-      error = "Failed to load workloads overview.";
+      error = `Failed to load workloads overview: ${e}`;
     } finally {
       loading = false;
     }

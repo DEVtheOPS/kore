@@ -31,6 +31,20 @@
     - **Config Storage**: Each cluster's kubeconfig stored at `~/.kore/kubeconfigs/<uuid>.yaml`.
     - **UUID-based**: Clusters identified by UUID v4 for stable routing.
 
+### Process environment (PATH)
+
+Kubeconfigs commonly authenticate through `exec` credential plugins (`aws eks
+get-token`, `gke-gcloud-auth-plugin`, `kubelogin`), and the YAML/scale/Helm
+features shell out to `kubectl` and `helm`. A GUI app launched from Finder/Dock or
+a desktop launcher gets a minimal `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin` on
+macOS), so those binaries are not found even though they work in a terminal.
+`lib.rs` calls `fix_path_env::fix()` first thing in `run()` to import `PATH` from
+the user's login shell. Do not spawn processes before that call, and keep the
+`kubectl`/`helm` invocations as plain command names so they resolve via `PATH`.
+
+Surface backend errors verbatim in the UI (`Failed to load X: ${e}`) — a generic
+message hid this exact problem for a long time.
+
 ### Component Library (`src/lib/components/ui/`)
 
 - **DataTable**: Powerful table with sorting, filtering, column visibility, drag-and-drop, and batch actions.

@@ -119,7 +119,7 @@
       });
     } catch (e) {
       console.error(`Failed to load ${title}`, e);
-      error = `Failed to load ${title}.`;
+      error = `Failed to load ${title}: ${e}`;
     } finally {
       loading = false;
     }
@@ -186,7 +186,7 @@
       });
     } catch (e) {
       console.error("Failed to load yaml", e);
-      error = `Failed to load YAML for ${row.name}.`;
+      error = `Failed to load YAML for ${row.name}: ${e}`;
       showYamlDrawer = false;
     } finally {
       loadingYaml = false;

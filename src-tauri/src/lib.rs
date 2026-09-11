@@ -8,6 +8,16 @@ mod k8s;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // GUI apps launched from Finder/Dock/a desktop launcher inherit a minimal
+    // PATH, not the user's shell PATH. Kubeconfig exec credential plugins
+    // (aws, gke-gcloud-auth-plugin, kubelogin, ...) plus the kubectl/helm
+    // shell-outs all depend on the shell PATH, so import it from the login
+    // shell before anything spawns a process.
+    #[cfg(not(target_os = "windows"))]
+    if let Err(e) = fix_path_env::fix() {
+        eprintln!("Warning: could not import PATH from the login shell: {}", e);
+    }
+
     // Init directories
     let _ = config::init_directories();
 

@@ -110,7 +110,7 @@
       });
     } catch (e) {
       console.error("Failed to load deployment yaml", e);
-      error = `Failed to load YAML for ${row.name}.`;
+      error = `Failed to load YAML for ${row.name}: ${e}`;
       showYamlDrawer = false;
     } finally {
       loadingYaml = false;

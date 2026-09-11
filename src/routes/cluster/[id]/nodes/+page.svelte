@@ -142,7 +142,7 @@
       nodes = nodeList;
     } catch (e) {
       console.error("Failed to load nodes", e);
-      error = "Failed to load nodes.";
+      error = `Failed to load nodes: ${e}`;
     } finally {
       loading = false;
     }

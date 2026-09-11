@@ -5,6 +5,7 @@ mod image_utils;
 mod import;
 mod input_validation;
 mod k8s;
+mod updater_info;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,6 +38,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_websocket::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -145,6 +147,8 @@ pub fn run() {
             import::import_add_cluster,
             // Image processing
             image_utils::process_icon_file,
+            // Updater
+            updater_info::updater_can_self_update,
             // Legacy config
             config::import_kubeconfig
         ])

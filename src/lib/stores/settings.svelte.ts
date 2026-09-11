@@ -5,6 +5,7 @@ export interface Settings {
   theme: Theme;
   codeTheme: CodeTheme;
   refreshInterval: number;
+  autoCheckUpdates: boolean;
 }
 
 class SettingsStore {
@@ -12,6 +13,7 @@ class SettingsStore {
     theme: 'kore',
     codeTheme: 'same-as-app',
     refreshInterval: 5000,
+    autoCheckUpdates: true,
   });
 
   constructor() {
@@ -40,6 +42,11 @@ class SettingsStore {
 
   setRefreshInterval(ms: number) {
     this.value.refreshInterval = ms;
+    this.save();
+  }
+
+  setAutoCheckUpdates(enabled: boolean) {
+    this.value.autoCheckUpdates = enabled;
     this.save();
   }
 

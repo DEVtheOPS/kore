@@ -1,6 +1,7 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import Select from '$lib/components/ui/Select.svelte';
+  import UpdatesCard from '$lib/components/UpdatesCard.svelte';
   import { Palette, Code } from 'lucide-svelte';
   import { settingsStore, type Theme, type CodeTheme } from '$lib/stores/settings.svelte';
 
@@ -59,4 +60,5 @@
       </div>
     </div>
   </Card>
+  <UpdatesCard />
 </div>

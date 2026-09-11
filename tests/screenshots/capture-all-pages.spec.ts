@@ -361,6 +361,15 @@ async function injectTauriMock(page: Page) {
         case 'cluster_create_namespace':
           return null
 
+        // ── Updater ─────────────────────────────────────────────────────────
+        case 'plugin:app|version':
+          return '0.4.0'
+        case 'updater_can_self_update':
+          return true
+        case 'plugin:updater|check':
+          // No update in the mock cluster; the Settings card shows the idle state.
+          return null
+
         default:
           console.warn(`[Tauri Mock] Unhandled command: "${cmd}"`, args)
           return null

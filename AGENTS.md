@@ -45,6 +45,20 @@ the user's login shell. Do not spawn processes before that call, and keep the
 Surface backend errors verbatim in the UI (`Failed to load X: ${e}`) — a generic
 message hid this exact problem for a long time.
 
+### In-app updater
+
+`updaterStore` (`src/lib/stores/updater.svelte.ts`) wraps `@tauri-apps/plugin-updater`.
+The root layout calls `init()` once; checks run 15s after launch and every 6h when
+`settings.autoCheckUpdates` is on. Background checks are *silent* — only an
+available update changes UI state, so offline/private setups never see errors.
+The manifest is `update.json` on gh-pages (published from tauri-action's
+`latest.json` by `release-please.yml`) with the GitHub Releases URL as fallback.
+Linux `.deb`/`.rpm` cannot self-update; `updater_can_self_update` (Rust) reports
+this via the `APPIMAGE` env var and the UI links to Releases instead.
+
+To verify a published release end-to-end (manifest, download, signature) without
+installing anything: `cd src-tauri && cargo run --example updater_probe`.
+
 ### Component Library (`src/lib/components/ui/`)
 
 - **DataTable**: Powerful table with sorting, filtering, column visibility, drag-and-drop, and batch actions.

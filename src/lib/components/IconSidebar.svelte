@@ -2,6 +2,7 @@
   import { Home, Plus, Settings as SettingsIcon, MoreVertical } from "lucide-svelte";
   import { clustersStore } from "$lib/stores/clusters.svelte";
   import { bookmarksStore } from "$lib/stores/bookmarks.svelte";
+  import { updaterStore } from "$lib/stores/updater.svelte";
   import { page } from "$app/stores";
   import Menu from "$lib/components/ui/Menu.svelte";
   import type { MenuItem } from "$lib/components/ui/Menu.svelte";
@@ -165,9 +166,15 @@
     href="/settings"
     class="flex items-center justify-center h-16 hover:bg-bg-main transition-colors relative"
     class:bg-bg-main={isActive("/settings")}
-    title="Settings"
+    title={updaterStore.available ? `Settings — update v${updaterStore.info?.version} available` : "Settings"}
   >
     <SettingsIcon size={28} class={isActive("/settings") ? "text-primary" : "text-text-main"} />
+    {#if updaterStore.available}
+      <span
+        class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-bg-sidebar"
+        aria-label="Update available"
+      ></span>
+    {/if}
   </a>
 </aside>
 

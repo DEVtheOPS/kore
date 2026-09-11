@@ -11,7 +11,7 @@
   import DeploymentDetailDrawer from "$lib/components/DeploymentDetailDrawer.svelte";
 
   let data = $state<any[]>([]);
-  let loading = $state(false);
+  let loading = $state(true);
   let search = $state("");
   let error = $state<string | null>(null);
 

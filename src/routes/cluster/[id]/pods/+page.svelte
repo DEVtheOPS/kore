@@ -108,7 +108,7 @@
   }
 
   let pods = $state<Pod[]>([]);
-  let loading = $state(false);
+  let loading = $state(true);
   let error = $state("");
   let search = $state("");
   let selectedPod = $state<Pod | null>(null);

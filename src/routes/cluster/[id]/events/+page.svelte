@@ -21,7 +21,7 @@
   }
 
   let data = $state<ClusterEventSummary[]>([]);
-  let loading = $state(false);
+  let loading = $state(true);
   let search = $state("");
   let error = $state<string | null>(null);
   let includeNormal = $state(true);

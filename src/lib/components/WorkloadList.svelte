@@ -36,7 +36,7 @@
   }>();
 
   let data = $state<any[]>([]);
-  let loading = $state(false);
+  let loading = $state(true);
   let search = $state("");
   let error = $state<string | null>(null);
 

@@ -29,7 +29,7 @@
     { key: "cronjobs", title: "CronJobs", route: "cronjobs", command: "cluster_list_cronjobs" },
   ];
 
-  let loading = $state(false);
+  let loading = $state(true);
   let error = $state<string | null>(null);
   let counts = $state<Record<WorkloadKey, number>>({
     deployments: 0,

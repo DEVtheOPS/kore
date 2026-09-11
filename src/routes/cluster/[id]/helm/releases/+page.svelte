@@ -24,7 +24,7 @@
   }
 
   let data = $state<HelmReleaseSummary[]>([]);
-  let loading = $state(false);
+  let loading = $state(true);
   let search = $state("");
   let error = $state<string | null>(null);
   let helm = $state<HelmAvailability | null>(null);

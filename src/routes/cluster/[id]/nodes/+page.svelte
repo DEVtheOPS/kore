@@ -51,7 +51,7 @@
   let usageByNode = $state<Record<string, NodeUsage>>({});
   let metricsAvailable = $state<boolean | null>(null);
   let usageError = $state<string | null>(null);
-  let loading = $state(false);
+  let loading = $state(true);
   let error = $state<string | null>(null);
   let search = $state("");
   let selectedNode = $state<NodeRow | null>(null);

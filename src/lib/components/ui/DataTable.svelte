@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowUp, ArrowDown, GripVertical, Settings2, Eye, EyeOff, RefreshCw, Search } from "lucide-svelte";
+  import { ArrowUp, ArrowDown, GripVertical, Settings2, Eye, EyeOff, RefreshCw, Search, Loader2 } from "lucide-svelte";
   import Button from "./Button.svelte";
   import Input from "./Input.svelte";
   import Menu, { type MenuItem } from "./Menu.svelte";
@@ -37,6 +37,7 @@
     actions,
     batchActions,
     emptyMessage = "No data available",
+    loadingMessage = "Loading...",
   }: {
     data: any[];
     columns: Column[];
@@ -52,7 +53,11 @@
     actions?: (row: any) => MenuItem[];
     batchActions?: BatchAction[];
     emptyMessage?: string;
+    loadingMessage?: string;
   } = $props();
+
+  const isInitialLoad = $derived(loading && data.length === 0);
+  const isRefreshing = $derived(loading && data.length > 0);
 
   let sortCol = $state<string | null>(null);
   let sortDir = $state<"asc" | "desc">("asc");
@@ -285,7 +290,7 @@
           {/if}
         </tr>
       </thead>
-      <tbody class="divide-y divide-border-subtle">
+      <tbody class="divide-y divide-border-subtle transition-opacity duration-200 {isRefreshing ? 'opacity-50 pointer-events-none' : ''}">
         {#each sortedData as row (row[keyField])}
           <tr
             class="hover:bg-bg-panel/50 transition-colors {onRowClick ? 'cursor-pointer' : ''} {selectedIds.has(
@@ -323,8 +328,17 @@
           <tr>
             <td
               colspan={visibleColumns.length + (showSelection ? 1 : 0) + (actions ? 1 : 0)}
-              class="px-4 py-8 text-center text-text-muted"> {emptyMessage} </td
+              class="px-4 py-8 text-center text-text-muted"
             >
+              {#if isInitialLoad}
+                <div class="flex items-center justify-center gap-2" role="status" aria-live="polite">
+                  <Loader2 size={16} class="animate-spin" />
+                  <span>{loadingMessage}</span>
+                </div>
+              {:else}
+                {emptyMessage}
+              {/if}
+            </td>
           </tr>
         {/if}
       </tbody>

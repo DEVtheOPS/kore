@@ -758,6 +758,22 @@ export const podUsage = pods.map((p, i) => {
   }
 })
 
+export const deploymentResourceUsage = {
+  'api-server': {
+    pods: [{
+      name: podUsage[0].name,
+      cpu_millicores: podUsage[0].cpu_millicores,
+      memory_bytes: podUsage[0].memory_bytes,
+      cpu_request_millicores: 150,
+      cpu_limit_millicores: 700,
+      memory_request_bytes: 320 * 1024 ** 2,
+      memory_limit_bytes: 640 * 1024 ** 2,
+      window: podUsage[0].window,
+    }],
+    usage_error: null,
+  },
+}
+
 // ─── Workload detail drawers ─────────────────────────────────────────────────
 
 const iso = (ms: number) => new Date(ms).toISOString()

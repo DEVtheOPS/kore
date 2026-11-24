@@ -289,8 +289,7 @@
     </div>
   {:else if details}
     <div class="space-y-6">
-      <!-- Live Usage (metrics-server) -->
-      <WorkloadUsage namespace={details.namespace} selector={details.selector} />
+      <WorkloadUsage namespace={details.namespace} deploymentName={details.name} />
 
       <!-- Deployment Details -->
       <div class="space-y-4">

@@ -7,7 +7,7 @@
 use crate::cluster_manager::ClusterManagerState;
 use crate::k8s::client::create_client_for_cluster;
 use kube::api::{ApiResource, DynamicObject, ListParams};
-use kube::Api;
+use kube::{Api, Client};
 use tauri::State;
 
 const METRICS_GROUP: &str = "metrics.k8s.io";
@@ -213,21 +213,32 @@ pub async fn cluster_get_pod_usage(
     state: State<'_, ClusterManagerState>,
 ) -> Result<Vec<PodUsage>, String> {
     let client = create_client_for_cluster(&cluster_id, &state).await?;
-    let ar = metrics_api_resource("PodMetrics", "pods");
-
-    let api: Api<DynamicObject> = match namespace.as_deref() {
-        Some(ns) if !ns.is_empty() && ns != "all" => Api::namespaced_with(client, ns, &ar),
-        _ => Api::all_with(client, &ar),
-    };
-
     let mut lp = ListParams::default();
     if let Some(selector) = label_selector.filter(|s| !s.trim().is_empty()) {
         lp = lp.labels(&selector);
     }
 
-    let list = api.list(&lp).await.map_err(|e| metrics_error("pod", e))?;
+    let namespace = namespace
+        .as_deref()
+        .filter(|ns| !ns.is_empty() && *ns != "all");
+    let pods = list_pod_metrics(client, namespace, &lp).await?;
+    Ok(pods.into_iter().map(map_pod_metrics).collect())
+}
 
-    Ok(list.items.into_iter().map(map_pod_metrics).collect())
+pub(super) async fn list_pod_metrics(
+    client: Client,
+    namespace: Option<&str>,
+    params: &ListParams,
+) -> Result<Vec<DynamicObject>, String> {
+    let ar = metrics_api_resource("PodMetrics", "pods");
+    let api: Api<DynamicObject> = match namespace {
+        Some(ns) => Api::namespaced_with(client, ns, &ar),
+        _ => Api::all_with(client, &ar),
+    };
+    api.list(params)
+        .await
+        .map(|list| list.items)
+        .map_err(|e| metrics_error("pod", e))
 }
 
 #[cfg(test)]

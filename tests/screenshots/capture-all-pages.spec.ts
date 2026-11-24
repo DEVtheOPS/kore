@@ -53,6 +53,7 @@ import {
   helmAvailability,
   nodeUsage,
   podUsage,
+  deploymentResourceUsage,
   deploymentDetails,
   deploymentPods,
   deploymentReplicaSets,
@@ -75,6 +76,7 @@ const MOCK_PAYLOAD = {
   nodeUsage,
   pods,
   podUsage,
+  deploymentResourceUsage,
   deploymentDetails,
   statefulsetDetails,
   workloadEvents,
@@ -185,6 +187,10 @@ async function injectTauriMock(page: Page) {
         }
         case 'cluster_get_deployment_pods':
           return data.deploymentPodsByName[(args as { deploymentName: string })?.deploymentName] ?? []
+        case 'cluster_get_deployment_resource_usage': {
+          const name = (args as { deploymentName: string })?.deploymentName
+          return data.deploymentResourceUsage[name as keyof typeof data.deploymentResourceUsage] ?? { pods: [], usage_error: null }
+        }
         case 'cluster_get_deployment_replicasets':
           return data.deploymentReplicaSetsByName[(args as { deploymentName: string })?.deploymentName] ?? []
         case 'cluster_get_deployment_events':

@@ -1,6 +1,7 @@
 pub mod client;
 pub mod common;
 pub mod deployment;
+mod deployment_usage;
 pub mod helm;
 pub mod metrics;
 pub mod mutate;
@@ -12,6 +13,7 @@ pub mod workload;
 
 pub use client::*;
 pub use deployment::*;
+pub use deployment_usage::*;
 pub use helm::*;
 pub use metrics::*;
 pub use mutate::*;

@@ -128,6 +128,7 @@ pub fn run() {
             // Deployment details, pods, and events
             k8s::cluster_get_deployment_details,
             k8s::cluster_get_deployment_pods,
+            k8s::cluster_get_deployment_resource_usage,
             k8s::cluster_get_deployment_replicasets,
             k8s::cluster_get_deployment_events,
             // StatefulSet details, pods, and events

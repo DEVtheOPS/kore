@@ -1,0 +1,51 @@
+{
+  "version": "0.6.0",
+  "notes": "",
+  "pub_date": "2026-11-24T06:50:54.382Z",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0FaUmRheFh2RzEyZ2xyZ2JLQ2lBalplMzhNTGhhV3liYVpOWEpUdWJXSmFGOFJBRzJaTDVZdEFydXZYcVRCMVNCUjVMWHlmN0FkdXVxZEhpSVc0cXdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNDcwCWZpbGU6S29yZV8wLjYuMF9hbWQ2NC5BcHBJbWFnZQpUZmxpN0RmZzRmSnFjRU5BTytVeDdnQzFKaXF4QzVKZy9ZQWhQVGE2TmgrMjhNek1uNkE0WXA2eDZ2WnhrSzg2K1p3RmVHVFQ1WHFVbjdIdUxNMFRBZz09Cg==",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_amd64.AppImage"
+    },
+    "linux-x86_64-appimage": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0FaUmRheFh2RzEyZ2xyZ2JLQ2lBalplMzhNTGhhV3liYVpOWEpUdWJXSmFGOFJBRzJaTDVZdEFydXZYcVRCMVNCUjVMWHlmN0FkdXVxZEhpSVc0cXdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNDcwCWZpbGU6S29yZV8wLjYuMF9hbWQ2NC5BcHBJbWFnZQpUZmxpN0RmZzRmSnFjRU5BTytVeDdnQzFKaXF4QzVKZy9ZQWhQVGE2TmgrMjhNek1uNkE0WXA2eDZ2WnhrSzg2K1p3RmVHVFQ1WHFVbjdIdUxNMFRBZz09Cg==",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_amd64.AppImage"
+    },
+    "linux-x86_64-deb": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0JYVXZFRG5MMkh2STVRWStzeWZlVnZhRlFJckkwK0UzZFVwZHRMekFjcmJ6Sjg2am9wd203dXFud0RsdHBXaFNvY0k3TmdML2N4dHhWMFlXblhoM2dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNDcwCWZpbGU6S29yZV8wLjYuMF9hbWQ2NC5kZWIKL2VPcGN5NDBlMXRqd3haYVpZblNBK1NDbnBYeTVyNHRPSkxQN3hUSkpGSVdDRzZUZzV4dS9MczVGT2QrcUxobGp1YTk1Mm9nU2dBRnJZcUlIcXorQ2c9PQo=",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_amd64.deb"
+    },
+    "linux-x86_64-rpm": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0tzV3VwQmFIcEcwV2VEUyt6YjRpb3QwV0pNYVBDN1BGTkREb0JpdkJVYzcvN3I2WXRtNTE3Nm9lTWZxTTdZcWhVUGs5eHE1VzNMS3hlU2pjR01hcFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNDcwCWZpbGU6S29yZS0wLjYuMC0xLng4Nl82NC5ycG0KcU03eFgyVjIwMlV5RzM1RGZWZFV3dWtlS3FxNkdxSm5nN1ZCT1o2RGlhd0p1Uzh2ZzM0Zjl4MlhtVy82M2Vuby9jYWR1bGx6Q1JqNE5YTzVDZGxDQmc9PQo=",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore-0.6.0-1.x86_64.rpm"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0Z1aS92UE05YnpXbE1MU2o2c2daK2EyUDlWck9TVktOdlo0UHlwT2c1ektIbjRvRGtyRVI5b1pTeVNVYk12cFJkamRGbWhIYU41RWdYcnh0aGhEemcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjM0CWZpbGU6S29yZS5hcHAudGFyLmd6CnlxcFhpTHV3N0s1enNvbGhqYTFqSE0wS1FOc25jcElEUjNSZ1dRN2lTMG5SMjdOZXBja3ZNMFVDMzlzL3IrWWJ2MzhFYlFPRGJISVVnTWU0VzU3RUNRPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_x64.app.tar.gz"
+    },
+    "darwin-x86_64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0Z1aS92UE05YnpXbE1MU2o2c2daK2EyUDlWck9TVktOdlo0UHlwT2c1ektIbjRvRGtyRVI5b1pTeVNVYk12cFJkamRGbWhIYU41RWdYcnh0aGhEemcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjM0CWZpbGU6S29yZS5hcHAudGFyLmd6CnlxcFhpTHV3N0s1enNvbGhqYTFqSE0wS1FOc25jcElEUjNSZ1dRN2lTMG5SMjdOZXBja3ZNMFVDMzlzL3IrWWJ2MzhFYlFPRGJISVVnTWU0VzU3RUNRPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_x64.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0svVVhWUDlUUzhROXhwVy9aRXU1ZnJ1N010bGo1TWtWUXNRWkFoQUIyaklyQkdxTXdzeTh3VDRDZTc1ckFpRDFYRmJBdmg5bHM5SzAxbzlsakFad1FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjU2CWZpbGU6S29yZV8wLjYuMF94NjRfZW4tVVMubXNpCkpGVi9VK0tZYUtBb3Y3NzBMZWFYSEdEV3lINzR4NVZvM1g3b01BRlRaKzA0b0k5ekdtYVF6ZmQ3R0J4a1FQRUY1SU12VWNBNTJrZlF4UXJTU1RZN0RBPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_x64_en-US.msi"
+    },
+    "windows-x86_64-msi": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0svVVhWUDlUUzhROXhwVy9aRXU1ZnJ1N010bGo1TWtWUXNRWkFoQUIyaklyQkdxTXdzeTh3VDRDZTc1ckFpRDFYRmJBdmg5bHM5SzAxbzlsakFad1FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjU2CWZpbGU6S29yZV8wLjYuMF94NjRfZW4tVVMubXNpCkpGVi9VK0tZYUtBb3Y3NzBMZWFYSEdEV3lINzR4NVZvM1g3b01BRlRaKzA0b0k5ekdtYVF6ZmQ3R0J4a1FQRUY1SU12VWNBNTJrZlF4UXJTU1RZN0RBPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_x64_en-US.msi"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ09nNjhHcWlvK05vdzEzZ25rNWc1WTA3NURKTmQ0YjNFQ055R21sb0treW44cUdGUnB3NlhwajRnRVVGd0o1VmVJOVJPeUxHY3AyQXh5OFNUSjJINEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjU2CWZpbGU6S29yZV8wLjYuMF94NjQtc2V0dXAuZXhlCjBjZkVGcE95Yy9UZGQ3SDRsTEthSnZ5Vjh1NEZmRzBWQ2RyMVJjMStOTWRvRlBPVGNNaVlQRnExZWNISlhRUDB4aDNsM3Y1V1FMRFptMmF2Zks3MEF3PT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_0.6.0_x64-setup.exe"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0pmSFhNaG5GdVZyY3BSZjhUTS9pRHl1Yk9xN2UyKysvZkdKV1FrY2pZeWZzMStUZGczSmVpVmsvTThyZ2x4OGc4Q0xoL01rMnVad3YvSkRXNkJGc0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjc0CWZpbGU6S29yZS5hcHAudGFyLmd6Cm5lQndJcEIrYVIzb1c5U2lqdkhVZkU4UGk0cDQyVitKV2gyM1UzaytyZnpkY0lzRUhTQnJ2UXlBQTZ2eTdHNS94MGFRbzJxdVdnVnlNRGhBcnJWTEFnPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_aarch64.app.tar.gz"
+    },
+    "darwin-aarch64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWTVnUnR5RCtDQ0pmSFhNaG5GdVZyY3BSZjhUTS9pRHl1Yk9xN2UyKysvZkdKV1FrY2pZeWZzMStUZGczSmVpVmsvTThyZ2x4OGc4Q0xoL01rMnVad3YvSkRXNkJGc0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NTAyNjc0CWZpbGU6S29yZS5hcHAudGFyLmd6Cm5lQndJcEIrYVIzb1c5U2lqdkhVZkU4UGk0cDQyVitKV2gyM1UzaytyZnpkY0lzRUhTQnJ2UXlBQTZ2eTdHNS94MGFRbzJxdVdnVnlNRGhBcnJWTEFnPT0K",
+      "url": "https://github.com/DEVtheOPS/kore/releases/download/v0.6.0/Kore_aarch64.app.tar.gz"
+    }
+  }
+}

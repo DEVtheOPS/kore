@@ -1,48 +1,47 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import { onMount } from "svelte";
+  import { page } from "$app/state";
   import ResourceSidebar from "$lib/components/ResourceSidebar.svelte";
   import BottomDrawer from "$lib/components/BottomDrawer.svelte";
   import { clustersStore } from "$lib/stores/clusters.svelte";
   import { activeClusterStore } from "$lib/stores/activeCluster.svelte";
   import { headerStore } from "$lib/stores/header.svelte";
   import type { Cluster } from "$lib/stores/clusters.svelte";
+  import { setClusterMetadata } from "./clusterContext";
 
   let { children } = $props();
 
   let cluster = $state<Cluster | null>(null);
-  let loading = $state(true);
+  let loadedClusterId = $state<string>();
 
-  const clusterId = $derived($page.params.id);
+  const clusterId = $derived(page.params.id);
+  setClusterMetadata(() => cluster);
 
-  // Load cluster data when ID changes
   $effect(() => {
-    if (clusterId) {
-      loadCluster(clusterId);
-    }
+    const id = clusterId;
+    if (!id) return;
+    const selection = new AbortController();
+    loadedClusterId = undefined;
+    cluster = null;
+    void loadCluster(id, selection.signal);
+    return () => selection.abort();
   });
 
-  async function loadCluster(id: string | undefined) {
-    if (!id) {
-      loading = false;
-      return;
-    }
-    
-    loading = true;
+  async function loadCluster(id: string, signal: AbortSignal) {
+    const isCurrent = () => !signal.aborted && clusterId === id;
+    if (!isCurrent()) return;
     try {
-      cluster = await clustersStore.get(id);
-      
-      if (cluster) {
-        // Update active cluster store
-        await activeClusterStore.setCluster(id);
-        
-        // Update last accessed timestamp
+      const selected = await clustersStore.get(id);
+      if (!isCurrent()) return;
+      if (selected?.id === id) {
+        await activeClusterStore.setCluster(id, signal);
+        if (!isCurrent()) return;
         await clustersStore.updateLastAccessed(id);
+        if (isCurrent()) cluster = selected;
       }
     } catch (e) {
-      console.error("Failed to load cluster", e);
+      if (isCurrent()) console.error("Failed to load cluster", e);
     } finally {
-      loading = false;
+      if (isCurrent()) loadedClusterId = id;
     }
   }
 
@@ -51,7 +50,7 @@
   }
 </script>
 
-{#if loading}
+{#if loadedClusterId !== clusterId}
   <div class="flex items-center justify-center h-full w-full">
     <div class="text-text-muted">Loading cluster...</div>
   </div>
@@ -84,7 +83,9 @@
 
       <!-- Content Area -->
       <div class="flex-1 overflow-auto p-6 bg-bg-panel">
-        {@render children()}
+        {#key clusterId}
+          {@render children()}
+        {/key}
       </div>
 
       <!-- Global Bottom Drawer -->

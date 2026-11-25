@@ -8,6 +8,8 @@ class ActiveClusterStore {
   namespaces = $state<string[]>([]);
   activeNamespace = $state<string>('all');
   loading = $state(false);
+  private namespaceRequest = 0;
+  private selectionSignal?: AbortSignal;
 
   get contextName(): string | null {
     if (!this.clusterId) return null;
@@ -46,16 +48,17 @@ class ActiveClusterStore {
     );
   }
 
-  async setCluster(clusterId: string | null) {
+  async setCluster(clusterId: string | null, signal?: AbortSignal) {
+    if (signal?.aborted) return;
+    this.namespaceRequest++;
+    this.selectionSignal = signal;
     this.clusterId = clusterId;
     this.activeNamespace = 'all';
+    this.namespaces = [];
+    this.loading = false;
     this.save();
-    
-    if (clusterId) {
-      await this.fetchNamespaces();
-    } else {
-      this.namespaces = [];
-    }
+
+    if (clusterId) await this.fetchNamespaces();
   }
 
   setNamespace(namespace: string) {
@@ -64,17 +67,20 @@ class ActiveClusterStore {
   }
 
   async fetchNamespaces() {
-    if (!this.clusterId) {
+    const { clusterId, selectionSignal } = this;
+    if (selectionSignal?.aborted) return;
+    const request = ++this.namespaceRequest;
+    const isCurrent = () => request === this.namespaceRequest && !selectionSignal?.aborted;
+    if (!clusterId) {
       this.namespaces = [];
       return;
     }
 
     this.loading = true;
     try {
-      const nss = await invoke<string[]>('cluster_list_namespaces', {
-        clusterId: this.clusterId,
-      });
-      this.namespaces = nss.sort();
+      const nss = await invoke<string[]>('cluster_list_namespaces', { clusterId });
+      if (!isCurrent()) return;
+      this.namespaces = [...nss].sort();
       
       // Reset to 'all' if current namespace doesn't exist
       if (this.activeNamespace !== 'all' && !this.namespaces.includes(this.activeNamespace)) {
@@ -82,10 +88,11 @@ class ActiveClusterStore {
         this.save();
       }
     } catch (e) {
+      if (!isCurrent()) return;
       console.error('Failed to fetch namespaces', e);
       this.namespaces = [];
     } finally {
-      this.loading = false;
+      if (isCurrent()) this.loading = false;
     }
   }
 }

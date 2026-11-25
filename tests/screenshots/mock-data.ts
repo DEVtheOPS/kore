@@ -410,8 +410,14 @@ export const deployments = [
 // ─── Cluster Metrics ──────────────────────────────────────────────────────────
 
 export const clusterMetrics = {
-  cpu: { capacity: 20000, allocatable: 19730, requests: 8500, limits: 15000, usage: 6200 },
-  memory: { capacity: 81920, allocatable: 75776, requests: 35840, limits: 61440, usage: 28672 },
+  cpu: { capacity: 20, allocatable: 19.73, requests: 8.5, limits: 15, usage: 6.2 },
+  memory: {
+    capacity: 80 * 1024 ** 3,
+    allocatable: 74 * 1024 ** 3,
+    requests: 35 * 1024 ** 3,
+    limits: 60 * 1024 ** 3,
+    usage: 28 * 1024 ** 3,
+  },
   pods: { capacity: 330, allocatable: 330, requests: 0, limits: 0, usage: 42 },
 }
 

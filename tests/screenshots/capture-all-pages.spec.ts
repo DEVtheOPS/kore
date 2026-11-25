@@ -480,13 +480,8 @@ test('02-settings', async ({ page }) => {
 
 // ─── Cluster pages ────────────────────────────────────────────────────────────
 
-test('03-cluster-overview', async ({ page }) => {
-  await goAndWait(page, `${CLUSTER_BASE}`)
-  await capture(page, '03-cluster-overview')
-})
-
 test('04-cluster-dashboard', async ({ page }) => {
-  await goAndWait(page, `${CLUSTER_BASE}/dashboard`)
+  await goAndWait(page, CLUSTER_BASE)
   await capture(page, '04-cluster-dashboard')
 })
 
